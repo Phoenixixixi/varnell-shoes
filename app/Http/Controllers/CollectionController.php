@@ -26,4 +26,22 @@ class CollectionController extends Controller
             'styleshoes' => $styles
         ]);
     }
+
+    public function show(Product $collection)
+    {
+        $collection->load(['images', 'sizes', 'descriptions']);
+
+        $relatedProducts = Product::with(['images' => function ($q) {
+            $q->orderBy('id')->take(1);
+        }, 'sizes'])
+            ->where('id', '!=', $collection->id)
+            ->inRandomOrder()
+            ->take(3)
+            ->get();
+
+        return Inertia::render('user/product-detail', [
+            'product' => $collection,
+            'relatedProducts' => $relatedProducts,
+        ]);
+    }
 }

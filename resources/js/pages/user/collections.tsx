@@ -100,7 +100,7 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                 <div className="flex flex-col md:flex-row gap-16">
 
                     <aside className="w-full md:w-64 flex-shrink-0 space-y-12">
-                        <section>
+                        {/* <section>
                             <h3 className="font-headline text-xl mb-6 text-primary">Style</h3>
                             <div className="space-y-3">
                                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -128,8 +128,8 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                                     <span className="font-label text-sm text-on-surface-variant group-hover:text-primary transition-colors">Boots</span>
                                 </label>
                             </div>
-                        </section>
-                        <section>
+                        </section> */}
+                        {/* <section>
                             <h3 className="font-headline text-xl mb-6 text-primary">Material</h3>
                             <div className="space-y-3">
                                 <label className="flex items-center gap-3 cursor-pointer group">
@@ -141,7 +141,7 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                                     <span className="font-label text-sm text-on-surface-variant group-hover:text-primary transition-colors">Suede</span>
                                 </label>
                             </div>
-                        </section>
+                        </section> */}
 
                         <section>
                             <h3 className="font-headline text-xl mb-6 text-primary">Size</h3>
@@ -160,9 +160,9 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-16">
 
                             {products.data.map((product: any) => (
-                                <div className="group cursor-pointer" key={product.id}>
+                                <a href={`/collections/${product.id}`} className="group cursor-pointer" key={product.id}>
                                     <div className="relative overflow-hidden editorial-image-mask aspect-[4/5] bg-surface-container-low mb-6">
-                                        <img alt="The Artisan Loafer"
+                                        <img alt={product.name}
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                             data-alt={product.description}
                                             src={product.images[0].image_list} />
@@ -180,7 +180,7 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                                         </div>
                                         <span className="font-headline text-xl text-primary">{formatRupiah(product.price)}</span>
                                     </div>
-                                </div>
+                                </a>
                             ))}
 
 

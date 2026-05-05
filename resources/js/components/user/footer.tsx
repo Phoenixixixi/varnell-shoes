@@ -3,8 +3,8 @@ export default function Footer() {
         <footer className="w-full pt-24 pb-12 bg-surface">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 px-6 md:px-16 max-w-7xl mx-auto">
                 <div className="space-y-6">
-                    <span className="text-lg font-bold text-primary font-headline tracking-tighter uppercase">ATELIER LEATHER</span>
-                    <p className="text-on-surface-variant text-sm font-body leading-relaxed">© 2024 Atelier Leather. Defined by Nature. Crafted by Hand.</p>
+                    <span className="text-lg font-bold text-primary font-headline tracking-tighter uppercase">Varnell</span>
+                    <p className="text-on-surface-variant text-sm font-body leading-relaxed">© 2026 Varnell. Defined by Nature. Crafted by Hand.</p>
                     <div className="flex gap-4">
                         <span className="material-symbols-outlined text-primary cursor-pointer hover:text-secondary">public</span>
                         <span className="material-symbols-outlined text-primary cursor-pointer hover:text-secondary">camera</span>

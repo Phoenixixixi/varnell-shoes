@@ -1,5 +1,6 @@
 import UserLayoutApp from '@/layouts/user-layout';
 import { formatRupiah } from '@/lib/to-rupiah';
+import { assetUrl } from '@/lib/asset-url';
 
 
 export default function Welcome({ product }: any) {
@@ -66,11 +67,11 @@ export default function Welcome({ product }: any) {
                             {/* show 3 product from product table */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                 {product.map((item: any, index: any) => (
-                                    <div className="group cursor-pointer space-y-6" key={index}>
+                                    <a href={`/collections/${item.id}`} className="group cursor-pointer space-y-6" key={index}>
                                         <div className="aspect-[4/5] overflow-hidden rounded-xl bg-surface-container-low relative">
                                             <img className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                                 data-alt="studio shot of deep mahogany leather wingtip shoes on a minimalist warm beige background"
-                                                src={`http://localhost:8000${item?.images?.[0]?.image_list || ''}`} />
+                                                src={assetUrl(item?.images?.[0]?.image_list)} />
                                             <div className="absolute top-4 left-4 bg-surface px-4 py-1 rounded-full">
                                                 <span className="text-[10px] font-bold tracking-widest uppercase">New Product</span>
                                             </div>
@@ -86,7 +87,7 @@ export default function Welcome({ product }: any) {
                                                 <span className='text-end text-sm font-body text-on-surface-variant'>size {item.sizes.map((size: any) => size.size).join(' | ')}</span>
                                             </div>
                                         </div>
-                                    </div>
+                                    </a>
                                 ))}
 
 

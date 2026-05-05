@@ -5,8 +5,16 @@ use Inertia\Inertia;
 
 Route::get('/', [\App\Http\Controllers\UserController::class, 'index'])->name('varnell');
 Route::get('/collections', [\App\Http\Controllers\CollectionController::class, 'index'])->name('collections');
+Route::get('/collections/{collection}', [\App\Http\Controllers\CollectionController::class, 'show'])->name('collections.show');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/sign-in', [\App\Http\Controllers\UserAuthController::class, 'showLogin'])->name('user.login');
+    Route::get('/sign-up', [\App\Http\Controllers\UserAuthController::class, 'showRegister'])->name('user.register');
+});
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/account', [\App\Http\Controllers\AccountController::class, 'index'])->name('account');
+
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', function () {
         return redirect()->route('admin.dashboard');
