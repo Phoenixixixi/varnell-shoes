@@ -17,4 +17,8 @@ class UserController extends Controller
             'product' => $products
         ]);
     }
+
+    public function craftsmanship(){
+        return Inertia::render('user/craftsmanship');
+    }
 }

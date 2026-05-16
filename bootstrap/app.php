@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
+
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+        ]);
+
+        $middleware->validateCsrfTokens(except: [
+            'checkout/callback',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

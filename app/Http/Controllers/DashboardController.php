@@ -17,7 +17,7 @@ class DashboardController extends Controller
     public function index()
     {
         // Calculate Income Trends (Last 30 days)
-        $incomeTrends = Order::where('status', '!=', 'canceled')
+        $incomeTrends = Order::where('status', '!=', 'cancelled')
             ->where('created_at', '>=', Carbon::now()->subDays(30))
             ->select(
                 DB::raw('DATE(created_at) as date'),
@@ -30,14 +30,14 @@ class DashboardController extends Controller
         // Shipment Status Analytics
         $shipmentStats = [
             'pending' => Shipment::where('status', 'pending')->count(),
-            'progress' => Shipment::where('status', 'progress')->count(),
             'packaging' => Shipment::where('status', 'packaging')->count(),
+            'progress' => Shipment::where('status', 'sent_to_courier')->count(),
             'completed' => Shipment::where('status', 'completed')->count(),
         ];
 
         // Overall KPIs
         $stats = [
-            'total_income' => Order::where('status', 'completed')->sum('total_price'),
+            'total_income' => Order::whereIn('status', ['processing', 'completed'])->sum('total_price'),
             'pending_orders' => Order::where('status', 'pending')->count(),
             'total_shipments' => Shipment::count(),
             'completed_shipments' => Shipment::where('status', 'completed')->count(),

@@ -171,7 +171,9 @@ export default function Catalog({ products, styleshoes, sizesshoes }: any) {
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <h3 className="font-headline text-2xl text-primary mb-1">{product.name}</h3>
-                                            <p className="text-on-surface-variant font-label text-sm uppercase tracking-wider mb-4">{product.description}</p>
+                                            <p className="text-on-surface-variant font-label text-sm uppercase tracking-wider mb-4 line-clamp-2">
+                                                {product.description}
+                                            </p>
                                             <div className="flex gap-2">
                                                 {product.sizes.map((size: any) => (
                                                     <span className="font-label text-sm text-on-surface-variant">{size.size}</span>

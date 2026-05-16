@@ -20,7 +20,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('auth/register');
+        return Inertia::render('user/auth/register');
     }
 
     /**
@@ -34,18 +34,20 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'email.unique' => 'Email already registered',
         ]);
 
-        $user = User::create([
+        // Store registration data in session temporarily
+        $request->session()->put('registration_data', [
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => 'user',
         ]);
 
-        event(new Registered($user));
+        OTP()->channel(['mail'])->send($request->email);
 
-        Auth::login($user);
-
-        return to_route('admin.dashboard');
+        return redirect()->route('otp.verify', ['email' => $request->email, 'type' => 'registration']);
     }
 }

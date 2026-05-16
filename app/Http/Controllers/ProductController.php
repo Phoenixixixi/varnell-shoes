@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Material;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductLogs;
+use App\Models\Recipe;
 use App\Models\SizesModels;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -18,7 +21,8 @@ class ProductController extends Controller
     public function index()
     {
         return Inertia::render('product', [
-            'products' => Product::with(['images', 'descriptions', 'sizes'])->latest()->get(),
+            'products' => Product::with(['images', 'descriptions', 'sizes', 'recipe.items.material'])->latest()->get(),
+            'recipes' => Recipe::with('items.material')->get(),
         ]);
     }
 
@@ -38,53 +42,81 @@ class ProductController extends Controller
             'sizes.*.stock' => 'required|integer|min:0',
             'images' => 'nullable|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'recipe_id' => 'nullable|exists:shoe_recipes,id',
         ]);
 
-        // Total stock is the sum of all size stocks
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
 
-        $product = Product::create([
-            'name' => $validated['name'],
-            'price' => $validated['price'],
-            'stock' => $totalStock,
-            'description' => $validated['description'],
-        ]);
+        return DB::transaction(function () use ($validated, $totalStock, $request) {
+            // Material Validation
+            if ($validated['recipe_id'] && $totalStock > 0) {
+                $recipe = Recipe::with('items.material')->find($validated['recipe_id']);
+                foreach ($recipe->items as $item) {
+                    $totalRequired = $item->quantity_required * $totalStock;
+                    if ($item->material->current_stock < $totalRequired) {
+                        return redirect()->back()->withErrors([
+                            'recipe_id' => "Not enough {$item->material->name}. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}. Please add more material."
+                        ]);
+                    }
+                }
 
-        // Save sizes
-        foreach ($validated['sizes'] as $sizeEntry) {
-            $product->sizes()->create([
-                'size' => $sizeEntry['size'],
-                'stock' => $sizeEntry['stock'],
+                // Deduct Materials
+                foreach ($recipe->items as $item) {
+                    $totalRequired = $item->quantity_required * $totalStock;
+                    $item->material->decrement('current_stock', $totalRequired);
+                    
+                    $item->material->logs()->create([
+                        'user_id' => auth()->id(),
+                        'material_name' => $item->material->name,
+                        'type' => 'out',
+                        'quantity' => $totalRequired,
+                        'description' => "Used for product production: {$validated['name']} (Quantity: {$totalStock})",
+                    ]);
+                }
+            }
+
+            $product = Product::create([
+                'name' => $validated['name'],
+                'price' => $validated['price'],
+                'stock' => $totalStock,
+                'description' => $validated['description'],
+                'recipe_id' => $validated['recipe_id'],
             ]);
-        }
 
-        // Add log
-        if ($totalStock > 0) {
-            ProductLogs::create([
-                'product_id' => $product->id,
-                'user_id' => auth()->id(),
-                'type' => 'in',
-                'quantity' => $totalStock,
-            ]);
-        }
-
-        foreach ($validated['descriptionList'] as $desc) {
-            $product->descriptions()->create([
-                'list' => $desc,
-            ]);
-        }
-
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image_list' => '/storage/' . $path,
+            foreach ($validated['sizes'] as $sizeEntry) {
+                $product->sizes()->create([
+                    'size' => $sizeEntry['size'],
+                    'stock' => $sizeEntry['stock'],
                 ]);
             }
-        }
 
-        return redirect()->route('admin.product.index')->with('success', 'Product created successfully.');
+            if ($totalStock > 0) {
+                ProductLogs::create([
+                    'product_id' => $product->id,
+                    'user_id' => auth()->id(),
+                    'type' => 'in',
+                    'quantity' => $totalStock,
+                ]);
+            }
+
+            foreach ($validated['descriptionList'] as $desc) {
+                $product->descriptions()->create([
+                    'list' => $desc,
+                ]);
+            }
+
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('products', 'public');
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_list' => '/storage/' . $path,
+                    ]);
+                }
+            }
+
+            return redirect()->route('admin.product.index')->with('success', 'Product created successfully.');
+        });
     }
 
     /**
@@ -105,74 +137,99 @@ class ProductController extends Controller
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'deleted_images' => 'nullable|array',
             'deleted_images.*' => 'integer|exists:product_images,id',
+            'recipe_id' => 'nullable|exists:shoe_recipes,id',
         ]);
 
         $oldStock = $product->stock;
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
 
-        $product->update([
-            'name' => $validated['name'],
-            'price' => $validated['price'],
-            'stock' => $totalStock,
-            'description' => $validated['description'],
-        ]);
+        return DB::transaction(function () use ($validated, $totalStock, $oldStock, $product, $request) {
+            // Handle Material Deduction for stock INCREASE
+            if ($validated['recipe_id'] && $totalStock > $oldStock) {
+                $diff = $totalStock - $oldStock;
+                $recipe = Recipe::with('items.material')->find($validated['recipe_id']);
+                
+                // Validate first
+                foreach ($recipe->items as $item) {
+                    $totalRequired = $item->quantity_required * $diff;
+                    if ($item->material->current_stock < $totalRequired) {
+                        return redirect()->back()->withErrors([
+                            'recipe_id' => "Not enough {$item->material->name} for the stock increase. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
+                        ]);
+                    }
+                }
 
-        // Sync sizes
-        $product->sizes()->delete();
-        foreach ($validated['sizes'] as $sizeEntry) {
-            $product->sizes()->create([
-                'size' => $sizeEntry['size'],
-                'stock' => $sizeEntry['stock'],
+                // Then deduct
+                foreach ($recipe->items as $item) {
+                    $totalRequired = $item->quantity_required * $diff;
+                    $item->material->decrement('current_stock', $totalRequired);
+                    
+                    $item->material->logs()->create([
+                        'user_id' => auth()->id(),
+                        'material_name' => $item->material->name,
+                        'type' => 'out',
+                        'quantity' => $totalRequired,
+                        'description' => "Production stock increase: {$validated['name']} (+{$diff})",
+                    ]);
+                }
+            }
+
+            $product->update([
+                'name' => $validated['name'],
+                'price' => $validated['price'],
+                'stock' => $totalStock,
+                'description' => $validated['description'],
+                'recipe_id' => $validated['recipe_id'],
             ]);
-        }
 
-        if ($oldStock != $totalStock) {
-            $diff = abs($totalStock - $oldStock);
-            $type = ($totalStock > $oldStock) ? 'in' : 'out';
-
-            ProductLogs::create([
-                'product_id' => $product->id,
-                'user_id' => auth()->id(),
-                'type' => $type,
-                'quantity' => $diff,
-            ]);
-        }
-
-        // Sync descriptions
-        $product->descriptions()->delete();
-        foreach ($validated['descriptionList'] as $desc) {
-            $product->descriptions()->create([
-                'list' => $desc,
-            ]);
-        }
-
-        if ($request->hasFile('images')) {
-            foreach ($request->file('images') as $image) {
-                $path = $image->store('products', 'public');
-                ProductImage::create([
-                    'product_id' => $product->id,
-                    'image_list' => '/storage/' . $path,
+            $product->sizes()->delete();
+            foreach ($validated['sizes'] as $sizeEntry) {
+                $product->sizes()->create([
+                    'size' => $sizeEntry['size'],
+                    'stock' => $sizeEntry['stock'],
                 ]);
             }
-        }
 
-        if ($request->has('deleted_images') && is_array($request->deleted_images)) {
-            $imagesToDelete = ProductImage::whereIn('id', $request->deleted_images)->where('product_id', $product->id)->get();
-            foreach ($imagesToDelete as $image) {
-                $path = str_replace('/storage/', '', $image->image_list);
-                Storage::disk('public')->delete($path);
-                $image->delete();
+            if ($oldStock != $totalStock) {
+                $diff = abs($totalStock - $oldStock);
+                $type = ($totalStock > $oldStock) ? 'in' : 'out';
+
+                ProductLogs::create([
+                    'product_id' => $product->id,
+                    'user_id' => auth()->id(),
+                    'type' => $type,
+                    'quantity' => $diff,
+                ]);
             }
-        }
 
-        ProductLogs::create([
-            'product_id' => $product->id,
-            'user_id' => auth()->id(),
-            'type' => 'update',
-            'quantity' => $totalStock,
-        ]);
+            $product->descriptions()->delete();
+            foreach ($validated['descriptionList'] as $desc) {
+                $product->descriptions()->create([
+                    'list' => $desc,
+                ]);
+            }
 
-        return redirect()->route('admin.product.index')->with('success', 'Product updated successfully.');
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $path = $image->store('products', 'public');
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_list' => '/storage/' . $path,
+                    ]);
+                }
+            }
+
+            if ($request->has('deleted_images') && is_array($request->deleted_images)) {
+                $imagesToDelete = ProductImage::whereIn('id', $request->deleted_images)->where('product_id', $product->id)->get();
+                foreach ($imagesToDelete as $image) {
+                    $path = str_replace('/storage/', '', $image->image_list);
+                    Storage::disk('public')->delete($path);
+                    $image->delete();
+                }
+            }
+
+            return redirect()->route('admin.product.index')->with('success', 'Product updated successfully.');
+        });
     }
 
     /**
@@ -180,7 +237,6 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        // Delete associated image files
         foreach ($product->images as $image) {
             $path = str_replace('/storage/', '', $image->image_list);
             Storage::disk('public')->delete($path);
@@ -198,3 +254,4 @@ class ProductController extends Controller
         return redirect()->route('admin.product.index')->with('success', 'Product deleted successfully.');
     }
 }
+

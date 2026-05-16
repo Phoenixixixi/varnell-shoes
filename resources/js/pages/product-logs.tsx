@@ -19,6 +19,7 @@ interface Log {
     user_id: number;
     type: 'in' | 'out';
     quantity: number;
+    description: string;
     created_at: string;
     product: {
         name: string;
@@ -50,6 +51,7 @@ export default function ProductLogs({ logs }: Props) {
                                         <TableHead>Action By</TableHead>
                                         <TableHead>Type</TableHead>
                                         <TableHead>Quantity</TableHead>
+                                        <TableHead>Notes</TableHead>
                                         <TableHead>Date & Time</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -67,7 +69,10 @@ export default function ProductLogs({ logs }: Props) {
                                                 <TableCell className="font-semibold">
                                                     {log.type === 'in' ? '+' : '-'}{log.quantity}
                                                 </TableCell>
-                                                <TableCell className="text-muted-foreground">
+                                                <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground" title={log.description || ''}>
+                                                    {log.description || '-'}
+                                                </TableCell>
+                                                <TableCell className="text-muted-foreground text-xs">
                                                     {format(new Date(log.created_at), 'PPP p')}
                                                 </TableCell>
                                             </TableRow>

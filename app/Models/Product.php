@@ -11,6 +11,7 @@ class Product extends Model
         'description',
         'price',
         'stock',
+        'recipe_id',
     ];
 
     public function descriptions()
@@ -40,5 +41,10 @@ class Product extends Model
     }
     public function colors(){
         return $this->hasMany(Colors::class);
+    }
+    
+    public function recipe()
+    {
+        return $this->belongsTo(Recipe::class);
     }
 }

@@ -3,7 +3,8 @@ import { usePage } from "@inertiajs/react"
 import { useState, useEffect } from "react"
 
 export default function Header() {
-    const { url } = usePage()
+    const { url, props } = usePage()
+    const { auth } = props as any;
     const [mobileOpen, setMobileOpen] = useState(false)
 
     // Lock body scroll when mobile menu is open
@@ -22,18 +23,29 @@ export default function Header() {
         active: boolean;
     }
 
-    const navLink: NavLink[] = [
+    let navLink: NavLink[] = [
         { name: 'Home', link: "/", active: url === "/" },
         { name: "Collections", link: "/collections", active: url === "/collections" },
         { name: "Craftsmanship", link: "/craftsmanship", active: url === "/craftsmanship" },
         { name: "Heritage", link: "/heritage", active: url === "/heritage" },
     ]
 
+    if (auth?.user) {
+        navLink.push({
+            name: "Order",
+            link: route('shipment.index'),
+            active: url.startsWith("/shipment")
+        });
+    }
+
+    const userLink = auth?.user ? route('account') : route('user.login');
+    const userLabel = auth?.user ? 'My Account' : 'Sign In';
+
     return (
         <>
             {/* ── Top Bar ── */}
             <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-6 md:px-12 py-5 max-w-none backdrop-blur-md"
-                 style={{ backgroundColor: "rgba(250, 250, 245, 0.85)" }}>
+                style={{ backgroundColor: "rgba(250, 250, 245, 0.85)" }}>
 
                 {/* Logo */}
                 <div className="flex items-center gap-12">
@@ -43,10 +55,10 @@ export default function Header() {
                     <div className="hidden md:flex gap-8 items-center">
                         {navLink.map((value, index) => (
                             <a key={index}
-                               className={value.active
-                                   ? "border-secondary text-primary font-semibold border-b-2 font-headline tracking-wide py-1"
-                                   : "text-primary/70 hover:text-primary transition-colors duration-300 font-headline tracking-wide"}
-                               href={value.link}>
+                                className={value.active
+                                    ? "border-secondary text-primary font-semibold border-b-2 font-headline tracking-wide py-1"
+                                    : "text-primary/70 hover:text-primary transition-colors duration-300 font-headline tracking-wide"}
+                                href={value.link}>
                                 {value.name}
                             </a>
                         ))}
@@ -58,12 +70,12 @@ export default function Header() {
                     <button className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
                         <Search className="w-[22px] h-[22px]" strokeWidth={1.5} />
                     </button>
-                    <button className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary">
+                    <a href={route('cart.index')} className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary">
                         <ShoppingBag className="w-[22px] h-[22px]" strokeWidth={1.5} />
-                    </button>
-                    <button className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
+                    </a>
+                    <a href={userLink} className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
                         <User className="w-[22px] h-[22px]" strokeWidth={1.5} />
-                    </button>
+                    </a>
 
                     {/* Hamburger – mobile only */}
                     <button
@@ -100,7 +112,7 @@ export default function Header() {
                     {/* Search bar */}
                     <div className="mb-8">
                         <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                             style={{ backgroundColor: "var(--color-surface-low, #f2f2eb)" }}>
+                            style={{ backgroundColor: "var(--color-surface-low, #f2f2eb)" }}>
                             <Search className="w-5 h-5 text-primary/50" strokeWidth={1.5} />
                             <input
                                 type="text"
@@ -141,16 +153,16 @@ export default function Header() {
 
                     {/* Bottom actions */}
                     <div className="flex flex-col gap-3 pt-6"
-                         style={{
-                             borderTop: "1px solid var(--outline-variant, rgba(128,117,108,0.15))",
-                             opacity: mobileOpen ? 1 : 0,
-                             transition: "opacity 0.4s ease 0.25s",
-                         }}>
-                        <a href="/account" className="flex items-center gap-3 py-3 text-primary/70 hover:text-primary transition-colors duration-200">
+                        style={{
+                            borderTop: "1px solid var(--outline-variant, rgba(128,117,108,0.15))",
+                            opacity: mobileOpen ? 1 : 0,
+                            transition: "opacity 0.4s ease 0.25s",
+                        }}>
+                        <a href={userLink} className="flex items-center gap-3 py-3 text-primary/70 hover:text-primary transition-colors duration-200">
                             <User className="w-5 h-5" strokeWidth={1.5} />
-                            <span className="text-sm font-medium tracking-wide">My Account</span>
+                            <span className="text-sm font-medium tracking-wide">{userLabel}</span>
                         </a>
-                        <a href="/cart" className="flex items-center gap-3 py-3 text-primary/70 hover:text-primary transition-colors duration-200">
+                        <a href={route('cart.index')} className="flex items-center gap-3 py-3 text-primary/70 hover:text-primary transition-colors duration-200">
                             <ShoppingBag className="w-5 h-5" strokeWidth={1.5} />
                             <span className="text-sm font-medium tracking-wide">Shopping Bag</span>
                         </a>

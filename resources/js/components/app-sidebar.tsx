@@ -4,7 +4,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, CreditCard, Folder, LayoutGrid, Package, Ship } from 'lucide-react';
+import { BookOpen, CreditCard, Folder, LayoutGrid, Package, Ship, Box, ClipboardList } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -13,16 +13,8 @@ const mainNavItems: NavItem[] = [
         url: '/admin/dashboard',
         icon: LayoutGrid,
     },
-    {
-        title: 'Products',
-        url: '/admin/products',
-        icon: Package,
-    },
-    {
-        title: 'Product Logs',
-        url: '/admin/products-logs',
-        icon: BookOpen, // Or History if available, let's use BookOpen for now as it's already imported or similar
-    },
+
+
     {
         title: 'Shipment',
         url: '/admin/shipment',
@@ -49,6 +41,34 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+const StorageItems: NavItem[] = [
+    {
+        title: 'Materials',
+        url: '/admin/materials',
+        icon: Box,
+    },
+    {
+        title: 'Products',
+        url: '/admin/products',
+        icon: Package,
+    },
+    {
+        title: 'Materials Logs',
+        url: '/admin/material-logs',
+        icon: BookOpen,
+    },
+    {
+        title: 'Shoe Recipes',
+        url: '/admin/recipes',
+        icon: ClipboardList,
+    },
+    {
+        title: 'Product Logs',
+        url: '/admin/products-logs',
+        icon: BookOpen, // Or History if available, let's use BookOpen for now as it's already imported or similar
+    },
+];
+
 export function AppSidebar() {
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -65,7 +85,8 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain items={mainNavItems} name='product' />
+                <NavMain items={StorageItems} name='storage' />
             </SidebarContent>
 
             <SidebarFooter>

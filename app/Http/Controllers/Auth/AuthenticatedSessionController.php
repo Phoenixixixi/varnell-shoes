@@ -18,8 +18,18 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(Request $request): Response
     {
-        return Inertia::render('auth/login', [
+        return Inertia::render('user/auth/login', [
             'canResetPassword' => Route::has('password.request'),
+            'status' => $request->session()->get('status'),
+        ]);
+    }
+
+    /**
+     * Show the admin login page.
+     */
+    public function createAdmin(Request $request): Response
+    {
+        return Inertia::render('admin/auth/login', [
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -33,14 +43,29 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        
-        if(auth()->user()->role === 'admin'){
+        if (Auth::user()->role === 'admin') {
+             // If an admin tries to login through user login, maybe allow it but redirect to admin dashboard
             return redirect()->intended(route('admin.dashboard', absolute: false));
         }
 
-        if(auth()->user()->role === 'user'){
-            return redirect()->intended(route('admin.dashboard', absolute: false));
+        return redirect()->intended(route('landing-page', absolute: false));
+    }
+
+    /**
+     * Handle an incoming admin authentication request.
+     */
+    public function storeAdmin(LoginRequest $request): RedirectResponse
+    {
+        $request->authenticate();
+
+        if (Auth::user()->role !== 'admin') {
+            Auth::guard('web')->logout();
+            return back()->withErrors(['email' => 'These credentials do not have administrative access.']);
         }
+
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('admin.dashboard', absolute: false));
     }
 
     /**

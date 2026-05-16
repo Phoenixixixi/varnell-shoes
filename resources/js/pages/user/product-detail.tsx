@@ -2,6 +2,7 @@ import UserLayoutApp from '@/layouts/user-layout';
 import { formatRupiah } from '@/lib/to-rupiah';
 import { assetUrl } from '@/lib/asset-url';
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import {
     Truck,
     RotateCcw,
@@ -59,12 +60,34 @@ export default function ProductDetail({
     const selectedSizeData = product.sizes.find((s) => s.size === selectedSize);
     const isOutOfStock = selectedSizeData ? selectedSizeData.stock === 0 : false;
 
+    const handleBuyItNow = () => {
+        if (!selectedSize) return;
+        window.location.href = route('checkout.index', { 
+            product_id: product.id, 
+            size: selectedSize 
+        });
+    };
+
     const badges = [
         { icon: <Truck className="w-4 h-4" strokeWidth={1.5} />, label: 'Complimentary Shipping' },
         { icon: <RotateCcw className="w-4 h-4" strokeWidth={1.5} />, label: 'Lifetime Refurbishment' },
         { icon: <ShieldCheck className="w-4 h-4" strokeWidth={1.5} />, label: 'LWG Certified Gold' },
         { icon: <BadgeCheck className="w-4 h-4" strokeWidth={1.5} />, label: 'Authenticity Guaranteed' },
     ];
+
+    const handleAddToCart = () => {
+        if (!selectedSize) return;
+
+        router.post(route('cart.add'), {
+            product_id: product.id,
+            quantity: 1,
+            size: selectedSize,
+        }, {
+            onSuccess: () => {
+                // You could add a toast notification here
+            },
+        });
+    };
 
     const reviews = [
         {
@@ -173,7 +196,7 @@ export default function ProductDetail({
                                             disabled={size.stock === 0}
                                             className={`min-w-[56px] py-3 px-4 rounded-lg text-sm font-label transition-all duration-200 border
                                                 ${selectedSize === size.size
-                                                    ? 'bg-primary text-on-primary border-primary'
+                                                    ? 'bg-primary text-white border-primary'
                                                     : size.stock === 0
                                                         ? 'border-outline-variant text-primary/25 cursor-not-allowed line-through'
                                                         : 'border-outline-variant text-primary hover:border-primary hover:bg-surface-container-low'
@@ -191,13 +214,15 @@ export default function ProductDetail({
                             {/* CTA Buttons */}
                             <div className="space-y-3 pt-2">
                                 <button
+                                    onClick={handleAddToCart}
                                     disabled={!selectedSize || isOutOfStock}
                                     className="w-full py-4 rounded-xl text-sm font-label font-bold tracking-[0.15em] uppercase transition-all duration-300 active:scale-[0.98]
-                                        bg-primary text-on-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        bg-primary text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Add to Cart
                                 </button>
                                 <button
+                                    onClick={handleBuyItNow}
                                     disabled={!selectedSize || isOutOfStock}
                                     className="w-full py-4 rounded-xl text-sm font-label font-bold tracking-[0.15em] uppercase transition-all duration-300 active:scale-[0.98]
                                         text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"

@@ -12,7 +12,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        //  URL::forceScheme('https');
     }
 
     /**
@@ -20,8 +20,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // if (app()->environment('local')) {
-        //     URL::forceScheme('https');
-        // }
+        \Fouladgar\OTP\Notifications\OTPNotification::toMailUsing(fn ($notifiable, $token) => (new \Illuminate\Notifications\Messages\MailMessage)
+            ->subject('Your Verification Code')
+            ->greeting('Hello!')
+            ->line('Your verification code is:')
+            ->line($token)
+            ->line('This code will expire in 10 minutes.')
+            ->line('Thank you for using our application!')
+        );
     }
 }

@@ -8,6 +8,7 @@ import { Field, FieldLabel, FieldDescription } from '@/components/ui/field';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ImageUpload from '@/components/products/image-upload';
 import ProductTable from '@/components/products/product-table';
+import SelectButton from '@/components/select-button';
 import { Plus, Trash2, X } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -19,9 +20,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 interface ProductProp {
     products: any[];
+    recipes: any[];
 }
 
-export default function Product({ products }: ProductProp) {
+export default function Product({ products, recipes }: ProductProp) {
     const [isEditing, setIsEditing] = useState<number | null>(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
@@ -32,7 +34,10 @@ export default function Product({ products }: ProductProp) {
         sizes: [{ size: '', stock: '' }] as { size: string; stock: string }[],
         images: [] as File[],
         deleted_images: [] as number[],
+        recipe_id: '',
     });
+
+    const recipeOptions = recipes.map(r => ({ text: r.name, value: r.id.toString() }));
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,9 +69,9 @@ export default function Product({ products }: ProductProp) {
                 : [{ size: '', stock: '' }],
             images: [],
             deleted_images: [],
+            recipe_id: product.recipe_id?.toString() || '',
         });
         clearErrors();
-        // Scroll to form
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -129,15 +134,23 @@ export default function Product({ products }: ProductProp) {
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                 <Field>
-                                    <FieldLabel htmlFor="name">Product Name</FieldLabel>
-                                    <FieldDescription>The display name of the product.</FieldDescription>
-                                    <Input
-                                        id="name"
-                                        value={data.name}
-                                        onChange={(e) => setData('name', e.target.value)}
-                                        placeholder="e.g. Classic T-Shirt"
-                                        className={errors.name ? 'border-red-500' : ''}
+                                    <FieldLabel htmlFor="recipe_id">Product Model (from Recipe)</FieldLabel>
+                                    <FieldDescription>Select the recipe model for this product.</FieldDescription>
+                                    <SelectButton 
+                                        buttonItems={recipeOptions}
+                                        placeholder="Select a recipe"
+                                        value={data.recipe_id}
+                                        onValueChange={(val) => {
+                                            const recipe = recipes.find(r => r.id.toString() === val);
+                                            setData((prev) => ({
+                                                ...prev,
+                                                recipe_id: val,
+                                                name: recipe?.name || ''
+                                            }));
+                                        }}
+                                        className="w-full"
                                     />
+                                    {errors.recipe_id && <p className="mt-1 text-xs text-red-500">{errors.recipe_id}</p>}
                                     {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
                                 </Field>
 
@@ -156,21 +169,19 @@ export default function Product({ products }: ProductProp) {
                                     {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price}</p>}
                                 </Field>
 
-
-
                                 <Field>
                                     <FieldLabel htmlFor="description">Description</FieldLabel>
                                     <FieldDescription>Description of The Product</FieldDescription>
                                     <textarea
                                         id="description"
-                                        type="text"
                                         value={data.description}
                                         onChange={(e) => setData('description', e.target.value)}
                                         placeholder="e.g. This product is made of high-quality materials."
-                                        className='border rounded-lg p-2'
+                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                                     />
                                     {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description}</p>}
                                 </Field>
+
                                 <Field className="md:col-span-2">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -214,7 +225,6 @@ export default function Product({ products }: ProductProp) {
                                     {errors.descriptionList && <p className="mt-1 text-xs text-red-500">{errors.descriptionList}</p>}
                                 </Field>
 
-                                {/* Sizes & Stock */}
                                 <Field className="md:col-span-2">
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -286,7 +296,6 @@ export default function Product({ products }: ProductProp) {
                                     </div>
                                 </Field>
                             )}
-
                             <ImageUpload key={isEditing || 'new'} onChange={(files) => setData('images', files)} />
                             {Object.keys(errors)
                                 .filter((key) => key.startsWith("images."))
@@ -305,7 +314,6 @@ export default function Product({ products }: ProductProp) {
                                 <Button type="submit" disabled={processing}>
                                     {processing ? 'Saving...' : isEditing ? 'Update Product' : 'Add Product'}
                                 </Button>
-
                             </div>
                         </form>
                     </CardContent>
@@ -316,3 +324,4 @@ export default function Product({ products }: ProductProp) {
         </AppLayout>
     );
 }
+

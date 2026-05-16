@@ -16,7 +16,7 @@ class PasswordResetLinkController extends Controller
      */
     public function create(Request $request): Response
     {
-        return Inertia::render('auth/forgot-password', [
+        return Inertia::render('user/auth/forgot-password', [
             'status' => $request->session()->get('status'),
         ]);
     }
@@ -32,10 +32,14 @@ class PasswordResetLinkController extends Controller
             'email' => 'required|email',
         ]);
 
-        Password::sendResetLink(
-            $request->only('email')
-        );
+        $user = \App\Models\User::where('email', $request->email)->first();
 
-        return back()->with('status', __('A reset link will be sent if the account exists.'));
+        if ($user) {
+            OTP()->revoke($user);
+            OTP()->channel(['mail'])->send($user->email);
+        }
+
+        // We still redirect to the OTP page even if user doesn't exist to prevent email enumeration,
+        return redirect()->route('otp.verify', ['email' => $request->email, 'type' => 'password_reset']);
     }
 }
