@@ -144,33 +144,103 @@ class ProductController extends Controller
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
 
         return DB::transaction(function () use ($validated, $totalStock, $oldStock, $product, $request) {
-            // Handle Material Deduction for stock INCREASE
-            if ($validated['recipe_id'] && $totalStock > $oldStock) {
-                $diff = $totalStock - $oldStock;
-                $recipe = Recipe::with('items.material')->find($validated['recipe_id']);
-                
-                // Validate first
-                foreach ($recipe->items as $item) {
-                    $totalRequired = $item->quantity_required * $diff;
-                    if ($item->material->current_stock < $totalRequired) {
-                        return redirect()->back()->withErrors([
-                            'recipe_id' => "Not enough {$item->material->name} for the stock increase. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
-                        ]);
+            // Handle Material Deduction/Return
+            $oldRecipeId = $product->recipe_id;
+            $newRecipeId = $validated['recipe_id'];
+
+            if ($oldRecipeId != $newRecipeId) {
+                // Return materials for old recipe
+                if ($oldRecipeId && $oldStock > 0) {
+                    $oldRecipe = Recipe::with('items.material')->find($oldRecipeId);
+                    if ($oldRecipe) {
+                        foreach ($oldRecipe->items as $item) {
+                            $totalReturn = $item->quantity_required * $oldStock;
+                            $item->material->increment('current_stock', $totalReturn);
+                            
+                            $item->material->logs()->create([
+                                'user_id' => auth()->id(),
+                                'material_name' => $item->material->name,
+                                'type' => 'in',
+                                'quantity' => $totalReturn,
+                                'description' => "Stock returned due to recipe change: {$product->name} (Quantity: {$oldStock})",
+                            ]);
+                        }
                     }
                 }
 
-                // Then deduct
-                foreach ($recipe->items as $item) {
-                    $totalRequired = $item->quantity_required * $diff;
-                    $item->material->decrement('current_stock', $totalRequired);
+                // Deduct materials for new recipe
+                if ($newRecipeId && $totalStock > 0) {
+                    $newRecipe = Recipe::with('items.material')->find($newRecipeId);
                     
-                    $item->material->logs()->create([
-                        'user_id' => auth()->id(),
-                        'material_name' => $item->material->name,
-                        'type' => 'out',
-                        'quantity' => $totalRequired,
-                        'description' => "Production stock increase: {$validated['name']} (+{$diff})",
-                    ]);
+                    // Validate first
+                    foreach ($newRecipe->items as $item) {
+                        $totalRequired = $item->quantity_required * $totalStock;
+                        if ($item->material->current_stock < $totalRequired) {
+                            return redirect()->back()->withErrors([
+                                'recipe_id' => "Not enough {$item->material->name}. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
+                            ]);
+                        }
+                    }
+
+                    // Then deduct
+                    foreach ($newRecipe->items as $item) {
+                        $totalRequired = $item->quantity_required * $totalStock;
+                        $item->material->decrement('current_stock', $totalRequired);
+                        
+                        $item->material->logs()->create([
+                            'user_id' => auth()->id(),
+                            'material_name' => $item->material->name,
+                            'type' => 'out',
+                            'quantity' => $totalRequired,
+                            'description' => "Used for production (Recipe changed): {$validated['name']} (Quantity: {$totalStock})",
+                        ]);
+                    }
+                }
+            } elseif ($newRecipeId && $totalStock != $oldStock) {
+                $recipe = Recipe::with('items.material')->find($newRecipeId);
+                
+                if ($totalStock > $oldStock) {
+                    $diff = $totalStock - $oldStock;
+                    
+                    // Validate
+                    foreach ($recipe->items as $item) {
+                        $totalRequired = $item->quantity_required * $diff;
+                        if ($item->material->current_stock < $totalRequired) {
+                            return redirect()->back()->withErrors([
+                                'recipe_id' => "Not enough {$item->material->name} for the stock increase. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
+                            ]);
+                        }
+                    }
+
+                    // Deduct
+                    foreach ($recipe->items as $item) {
+                        $totalRequired = $item->quantity_required * $diff;
+                        $item->material->decrement('current_stock', $totalRequired);
+                        
+                        $item->material->logs()->create([
+                            'user_id' => auth()->id(),
+                            'material_name' => $item->material->name,
+                            'type' => 'out',
+                            'quantity' => $totalRequired,
+                            'description' => "Production stock increase: {$validated['name']} (+{$diff})",
+                        ]);
+                    }
+                } else {
+                    $diff = $oldStock - $totalStock;
+                    
+                    // Return
+                    foreach ($recipe->items as $item) {
+                        $totalReturn = $item->quantity_required * $diff;
+                        $item->material->increment('current_stock', $totalReturn);
+                        
+                        $item->material->logs()->create([
+                            'user_id' => auth()->id(),
+                            'material_name' => $item->material->name,
+                            'type' => 'in',
+                            'quantity' => $totalReturn,
+                            'description' => "Stock returned due to stock decrease: {$validated['name']} (-{$diff})",
+                        ]);
+                    }
                 }
             }
 
@@ -237,21 +307,42 @@ class ProductController extends Controller
      */
     public function destroy(Product $product)
     {
-        foreach ($product->images as $image) {
-            $path = str_replace('/storage/', '', $image->image_list);
-            Storage::disk('public')->delete($path);
-        }
+        return DB::transaction(function () use ($product) {
+            // Return materials if recipe exists
+            if ($product->recipe_id && $product->stock > 0) {
+                $recipe = Recipe::with('items.material')->find($product->recipe_id);
+                if ($recipe) {
+                    foreach ($recipe->items as $item) {
+                        $totalReturn = $item->quantity_required * $product->stock;
+                        $item->material->increment('current_stock', $totalReturn);
+                        
+                        $item->material->logs()->create([
+                            'user_id' => auth()->id(),
+                            'material_name' => $item->material->name,
+                            'type' => 'in',
+                            'quantity' => $totalReturn,
+                            'description' => "Stock returned due to product deletion: {$product->name} (Quantity: {$product->stock})",
+                        ]);
+                    }
+                }
+            }
 
-        ProductLogs::create([
-            'product_id' => $product->id,
-            'user_id' => auth()->id(),
-            'type' => 'destroy',
-            'quantity' => $product->stock,
-        ]);
+            foreach ($product->images as $image) {
+                $path = str_replace('/storage/', '', $image->image_list);
+                Storage::disk('public')->delete($path);
+            }
 
-        $product->delete();
+            ProductLogs::create([
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+                'type' => 'destroy',
+                'quantity' => $product->stock,
+            ]);
 
-        return redirect()->route('admin.product.index')->with('success', 'Product deleted successfully.');
+            $product->delete();
+
+            return redirect()->route('admin.product.index')->with('success', 'Product deleted successfully.');
+        });
     }
 }
 

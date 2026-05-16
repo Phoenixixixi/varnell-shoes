@@ -29,8 +29,9 @@ class OTPVerificationController extends Controller
         ]);
 
         try {
-            // Pass false to validate so it doesn't try to find or create the user in the DB
-            $notifiable = OTP()->validate($request->email, $request->otp, false);
+            // Use onlyConfirmToken to avoid fetching the user from the DB during validation,
+            // which prevents "null given to revoke()" error if the user doesn't exist yet (registration).
+            $notifiable = OTP()->onlyConfirmToken()->validate($request->email, $request->otp);
         } catch (OTPException $e) {
             return back()->withErrors(['otp' => $e->getMessage()]);
         } catch (\Exception $e) {
