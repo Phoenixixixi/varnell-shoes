@@ -18,6 +18,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+const formatDateForInput = (dateStr?: string) => {
+    if (!dateStr) return new Date().toISOString().split('T')[0];
+    try {
+        return new Date(dateStr).toISOString().split('T')[0];
+    } catch (e) {
+        return new Date().toISOString().split('T')[0];
+    }
+};
+
 interface ProductProp {
     products: any[];
     recipes: any[];
@@ -35,6 +44,7 @@ export default function Product({ products, recipes }: ProductProp) {
         images: [] as File[],
         deleted_images: [] as number[],
         recipe_id: '',
+        created_at: formatDateForInput(),
     });
 
     const recipeOptions = recipes.map(r => ({ text: r.name, value: r.id.toString() }));
@@ -70,6 +80,7 @@ export default function Product({ products, recipes }: ProductProp) {
             images: [],
             deleted_images: [],
             recipe_id: product.recipe_id?.toString() || '',
+            created_at: formatDateForInput(product.created_at),
         });
         clearErrors();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -167,6 +178,19 @@ export default function Product({ products, recipes }: ProductProp) {
                                         className={errors.price ? 'border-red-500' : ''}
                                     />
                                     {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price}</p>}
+                                </Field>
+
+                                <Field>
+                                    <FieldLabel htmlFor="created_at">Created At Date</FieldLabel>
+                                    <FieldDescription>Set the creation date for this product.</FieldDescription>
+                                    <Input
+                                        id="created_at"
+                                        type="date"
+                                        value={data.created_at}
+                                        onChange={(e) => setData('created_at', e.target.value)}
+                                        className={errors.created_at ? 'border-red-500' : ''}
+                                    />
+                                    {errors.created_at && <p className="mt-1 text-xs text-red-500">{errors.created_at}</p>}
                                 </Field>
 
                                 <Field>

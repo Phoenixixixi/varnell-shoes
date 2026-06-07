@@ -44,6 +44,7 @@ class ProductController extends Controller
             'images' => 'nullable|array|max:10',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             'recipe_id' => 'nullable|exists:shoe_recipes,id',
+            'created_at' => 'nullable|date',
         ]);
 
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
@@ -82,6 +83,7 @@ class ProductController extends Controller
                 'stock' => $totalStock,
                 'description' => $validated['description'],
                 'recipe_id' => $validated['recipe_id'],
+                'created_at' => $validated['created_at'] ?? now(),
             ]);
 
             foreach ($validated['sizes'] as $sizeEntry) {
@@ -139,6 +141,7 @@ class ProductController extends Controller
             'deleted_images' => 'nullable|array',
             'deleted_images.*' => 'integer|exists:product_images,id',
             'recipe_id' => 'nullable|exists:shoe_recipes,id',
+            'created_at' => 'nullable|date',
         ]);
 
         $oldStock = $product->stock;
@@ -251,6 +254,7 @@ class ProductController extends Controller
                 'stock' => $totalStock,
                 'description' => $validated['description'],
                 'recipe_id' => $validated['recipe_id'],
+                'created_at' => $validated['created_at'] ?? $product->created_at,
             ]);
 
             $product->sizes()->delete();

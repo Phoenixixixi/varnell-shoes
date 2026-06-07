@@ -12,6 +12,7 @@ class Product extends Model
         'price',
         'stock',
         'recipe_id',
+        'created_at',
     ];
 
     public function descriptions()
