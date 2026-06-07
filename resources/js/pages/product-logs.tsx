@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -37,7 +39,38 @@ export default function ProductLogs({ logs }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Product Stock Logs" />
-            <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+                <Card className="border-sidebar-border/70 bg-transparent shadow-none dark:border-sidebar-border">
+                    <CardHeader>
+                        <CardTitle>Export Product Stock Logs</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.currentTarget;
+                                const startDate = (form.elements.namedItem('startDate') as HTMLInputElement).value;
+                                const endDate = (form.elements.namedItem('endDate') as HTMLInputElement).value;
+                                if (!startDate || !endDate) return;
+                                window.open(route('admin.product.logs.export', { start_date: startDate, end_date: endDate }), '_blank');
+                            }}
+                            className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                        >
+                            <div className="flex-1">
+                                <label htmlFor="startDate" className="block text-sm font-medium text-foreground mb-1">Start Date</label>
+                                <Input id="startDate" name="startDate" type="date" required />
+                            </div>
+                            <div className="flex-1">
+                                <label htmlFor="endDate" className="block text-sm font-medium text-foreground mb-1">End Date</label>
+                                <Input id="endDate" name="endDate" type="date" required />
+                            </div>
+                            <Button type="submit" variant="outline" className="w-full sm:w-auto h-9">
+                                Export Logs
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+
                 <Card className="border-sidebar-border/70 bg-transparent shadow-none dark:border-sidebar-border">
                     <CardHeader>
                         <CardTitle>Product Stock History</CardTitle>

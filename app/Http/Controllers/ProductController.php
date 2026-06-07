@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Material;
+use App\Models\MaterialLog;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductLogs;
@@ -54,7 +55,7 @@ class ProductController extends Controller
                 foreach ($recipe->items as $item) {
                     $totalRequired = $item->quantity_required * $totalStock;
                     if ($item->material->current_stock < $totalRequired) {
-                        return redirect()->back()->withErrors([
+                        throw \Illuminate\Validation\ValidationException::withMessages([
                             'recipe_id' => "Not enough {$item->material->name}. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}. Please add more material."
                         ]);
                     }
@@ -176,7 +177,7 @@ class ProductController extends Controller
                     foreach ($newRecipe->items as $item) {
                         $totalRequired = $item->quantity_required * $totalStock;
                         if ($item->material->current_stock < $totalRequired) {
-                            return redirect()->back()->withErrors([
+                            throw \Illuminate\Validation\ValidationException::withMessages([
                                 'recipe_id' => "Not enough {$item->material->name}. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
                             ]);
                         }
@@ -206,7 +207,7 @@ class ProductController extends Controller
                     foreach ($recipe->items as $item) {
                         $totalRequired = $item->quantity_required * $diff;
                         if ($item->material->current_stock < $totalRequired) {
-                            return redirect()->back()->withErrors([
+                            throw \Illuminate\Validation\ValidationException::withMessages([
                                 'recipe_id' => "Not enough {$item->material->name} for the stock increase. Required: {$totalRequired}{$item->material->unit}, Available: {$item->material->current_stock}{$item->material->unit}."
                             ]);
                         }
@@ -343,6 +344,90 @@ class ProductController extends Controller
 
             return redirect()->route('admin.product.index')->with('success', 'Product deleted successfully.');
         });
+    }
+
+    /**
+     * Export production and material usage statistics to CSV/Excel.
+     */
+    public function export(Request $request)
+    {
+        $validated = $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $validated['start_date'];
+        $endDate = $validated['end_date'];
+
+        // Get Product logs
+        $productLogs = ProductLogs::with('product')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->get();
+
+        // Get Material logs
+        $materialLogs = MaterialLog::with('material')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->get();
+
+        // Process Products
+        $productsSummary = [];
+        foreach ($productLogs as $log) {
+            $productName = $log->product ? $log->product->name : ($log->description ?: 'Unknown Product');
+            if (!isset($productsSummary[$productName])) {
+                $productsSummary[$productName] = ['in' => 0, 'out' => 0, 'destroy' => 0];
+            }
+            $productsSummary[$productName][$log->type] = ($productsSummary[$productName][$log->type] ?? 0) + $log->quantity;
+        }
+
+        // Process Materials
+        $materialsSummary = [];
+        foreach ($materialLogs as $log) {
+            $materialName = $log->material_name ?: 'Unknown Material';
+            if (!isset($materialsSummary[$materialName])) {
+                $materialsSummary[$materialName] = ['in' => 0, 'out' => 0, 'unit' => '', 'current_stock' => 0];
+            }
+            $materialsSummary[$materialName][$log->type] = ($materialsSummary[$materialName][$log->type] ?? 0) + $log->quantity;
+            if ($log->material) {
+                $materialsSummary[$materialName]['unit'] = $log->material->unit;
+                $materialsSummary[$materialName]['current_stock'] = $log->material->current_stock;
+            }
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => "attachment; filename=\"production_report_{$startDate}_to_{$endDate}.csv\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0'
+        ];
+
+        $callback = function() use ($startDate, $endDate, $productsSummary, $materialsSummary) {
+            $file = fopen('php://output', 'w');
+
+            // Header info
+            fputcsv($file, ['Report Period:', "Start: {$startDate}", "End: {$endDate}"]);
+            fputcsv($file, ['Generated At:', now()->toDateTimeString()]);
+            fputcsv($file, []);
+
+            // Production Section
+            fputcsv($file, ['PRODUCTION SUMMARY']);
+            fputcsv($file, ['Product Name', 'Total Produced (Added to Stock)', 'Total Reduced (Deducted from Stock)', 'Total Destroyed (Deleted)']);
+            foreach ($productsSummary as $name => $vals) {
+                fputcsv($file, [$name, $vals['in'] ?? 0, $vals['out'] ?? 0, $vals['destroy'] ?? 0]);
+            }
+            fputcsv($file, []);
+
+            // Material Section
+            fputcsv($file, ['MATERIAL USAGE SUMMARY']);
+            fputcsv($file, ['Material Name', 'Total Used (Deducted / Out)', 'Total Returned (In)', 'Current Stock (Now)', 'Unit']);
+            foreach ($materialsSummary as $name => $vals) {
+                fputcsv($file, [$name, $vals['out'] ?? 0, $vals['in'] ?? 0, $vals['current_stock'] ?? 0, $vals['unit'] ?: 'pcs']);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
 

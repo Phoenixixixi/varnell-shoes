@@ -319,6 +319,37 @@ export default function Product({ products, recipes }: ProductProp) {
                     </CardContent>
                 </Card>
 
+                <Card className="border-sidebar-border/70 bg-transparent shadow-none dark:border-sidebar-border">
+                    <CardHeader>
+                        <CardTitle>Export Production & Material Report</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.currentTarget;
+                                const startDate = (form.elements.namedItem('startDate') as HTMLInputElement).value;
+                                const endDate = (form.elements.namedItem('endDate') as HTMLInputElement).value;
+                                if (!startDate || !endDate) return;
+                                window.open(route('admin.product.export', { start_date: startDate, end_date: endDate }), '_blank');
+                            }}
+                            className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                        >
+                            <div className="flex-1">
+                                <label htmlFor="startDate" className="block text-sm font-medium text-foreground mb-1">Start Date</label>
+                                <Input id="startDate" name="startDate" type="date" required />
+                            </div>
+                            <div className="flex-1">
+                                <label htmlFor="endDate" className="block text-sm font-medium text-foreground mb-1">End Date</label>
+                                <Input id="endDate" name="endDate" type="date" required />
+                            </div>
+                            <Button type="submit" variant="outline" className="w-full sm:w-auto h-9">
+                                Export Report
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+
                 <ProductTable products={products} onEdit={handleEdit} />
             </div>
         </AppLayout>

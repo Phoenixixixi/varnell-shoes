@@ -46,7 +46,9 @@ Route::middleware(['admin'])->group(function () {
         });
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
+        Route::get('products/export', [\App\Http\Controllers\ProductController::class, 'export'])->name('product.export');
         Route::resource('products', \App\Http\Controllers\ProductController::class)->names('product');
+        Route::get('products-logs/export', [\App\Http\Controllers\ProductLogController::class, 'export'])->name('product.logs.export');
         Route::get('products-logs', [\App\Http\Controllers\ProductLogController::class, 'index'])->name('product.logs');
         
         // Materials and Recipes
@@ -56,6 +58,7 @@ Route::middleware(['admin'])->group(function () {
         Route::resource('recipes', \App\Http\Controllers\RecipeController::class);
         Route::post('recipes/{recipe}/items', [\App\Http\Controllers\RecipeController::class, 'addItem'])->name('recipes.add-item');
         Route::delete('recipes/items/{item}', [\App\Http\Controllers\RecipeController::class, 'removeItem'])->name('recipes.remove-item');
+        Route::get('material-logs/export', [\App\Http\Controllers\MaterialLogs::class, 'export'])->name('material.logs.export');
         Route::get('material-logs', [\App\Http\Controllers\MaterialLogs::class, 'index'])->name('material.logs');
 
         Route::get('shipment', [\App\Http\Controllers\ShipmentController::class, 'index'])->name('shipment');
