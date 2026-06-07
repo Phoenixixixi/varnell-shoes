@@ -374,9 +374,12 @@ class ProductController extends Controller
         foreach ($productLogs as $log) {
             $productName = $log->product ? $log->product->name : ($log->description ?: 'Unknown Product');
             if (!isset($productsSummary[$productName])) {
-                $productsSummary[$productName] = ['in' => 0, 'out' => 0, 'destroy' => 0];
+                $productsSummary[$productName] = ['in' => 0, 'out' => 0, 'destroy' => 0, 'current_stock' => 0];
             }
             $productsSummary[$productName][$log->type] = ($productsSummary[$productName][$log->type] ?? 0) + $log->quantity;
+            if ($log->product) {
+                $productsSummary[$productName]['current_stock'] = $log->product->stock;
+            }
         }
 
         // Process Materials
@@ -411,9 +414,9 @@ class ProductController extends Controller
 
             // Production Section
             fputcsv($file, ['PRODUCTION SUMMARY']);
-            fputcsv($file, ['Product Name', 'Total Produced (Added to Stock)', 'Total Reduced (Deducted from Stock)', 'Total Destroyed (Deleted)']);
+            fputcsv($file, ['Product Name', 'Total Produced (Added to Stock)', 'Total Reduced (Deducted from Stock)', 'Total Destroyed (Deleted)', 'Current Stock']);
             foreach ($productsSummary as $name => $vals) {
-                fputcsv($file, [$name, $vals['in'] ?? 0, $vals['out'] ?? 0, $vals['destroy'] ?? 0]);
+                fputcsv($file, [$name, $vals['in'] ?? 0, $vals['out'] ?? 0, $vals['destroy'] ?? 0, $vals['current_stock'] ?? 0]);
             }
             fputcsv($file, []);
 
