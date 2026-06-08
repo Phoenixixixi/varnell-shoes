@@ -36,6 +36,7 @@ export default function Product({ products, recipes }: ProductProp) {
     const [isEditing, setIsEditing] = useState<number | null>(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        _method: 'POST',
         name: '',
         descriptionList: [''],
         description: '',
@@ -52,7 +53,7 @@ export default function Product({ products, recipes }: ProductProp) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (isEditing) {
-            put(route('admin.product.update', isEditing), {
+            post(route('admin.product.update', isEditing), {
                 onSuccess: () => {
                     reset();
                     setIsEditing(null);
@@ -68,6 +69,7 @@ export default function Product({ products, recipes }: ProductProp) {
     const handleEdit = (product: any) => {
         setIsEditing(product.id);
         setData({
+            _method: 'PUT',
             name: product.name,
             descriptionList: product.descriptions.length > 0
                 ? product.descriptions.map((d: any) => d.list)
