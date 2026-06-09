@@ -12,6 +12,7 @@ class Material extends Model
         'name',
         'unit',
         'current_stock',
+        'created_at',
     ];
 
     public function logs()

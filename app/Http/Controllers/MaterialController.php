@@ -24,6 +24,7 @@ class MaterialController extends Controller
             'unit' => 'required|string|max:50',
             'initial_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:255',
+            'created_at' => 'nullable|date',
         ]);
 
         DB::transaction(function () use ($validated, $request) {
@@ -31,15 +32,17 @@ class MaterialController extends Controller
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
                 'current_stock' => $validated['initial_stock'],
+                'created_at' => $validated['created_at'] ?? now(),
             ]);
 
             if ($validated['initial_stock'] > 0) {
                 $material->logs()->create([
                     'user_id' => $request->user()->id ?? null,
-                      'material_name'=> $validated['name'],
+                    'material_name'=> $validated['name'],
                     'type' => 'in',
                     'quantity' => $validated['initial_stock'],
                     'description' => $validated['description'] ?? 'Initial stock setup',
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             }
         });
@@ -59,6 +62,7 @@ class MaterialController extends Controller
             'unit' => 'required|string|max:50',
             'initial_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:255',
+            'created_at' => 'nullable|date',
         ]);
 
           DB::transaction(function () use ($validated, $request, $material, $oldStock, $oldName, $oldUnit) {
@@ -66,6 +70,7 @@ class MaterialController extends Controller
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
                 'current_stock' => $validated['initial_stock'],
+                'created_at' => $validated['created_at'] ?? $material->created_at,
             ]);
 
             if ($validated['initial_stock'] > $oldStock) {
@@ -75,6 +80,7 @@ class MaterialController extends Controller
                     'type' => 'in',
                    'quantity' => $validated['initial_stock'] - $oldStock,
                     'description' => $validated['description'] ?? 'Adding Stock',
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             } else if($validated['initial_stock'] < $oldStock){
                 $material->logs()->create([
@@ -83,6 +89,7 @@ class MaterialController extends Controller
                     'type' => 'out',
                     'quantity' => $oldStock - $validated['initial_stock'],
                     'description' => $validated['description'] ?? 'Removing Stock',
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             } 
             if($validated['name'] !== $oldName || $validated['unit'] !== $oldUnit){
@@ -92,6 +99,7 @@ class MaterialController extends Controller
                     'type' => 'adjustment',
                     'quantity' => $validated['initial_stock'],
                     'description' => 'edited name or unit',
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             }
         });
@@ -107,6 +115,7 @@ class MaterialController extends Controller
             'type' => 'delete',
             'quantity' => $material->current_stock,
             'description' => 'delete items',
+            'created_at' => $request->input('created_at') ?? now(),
         ]);
         $material->delete();
         
@@ -117,6 +126,7 @@ class MaterialController extends Controller
         $validated = $request->validate([
             'initial_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:255',
+            'created_at' => 'nullable|date',
         ]);
         $updateStock = $material->current_stock + $validated['initial_stock'];
         $material->update([
@@ -129,6 +139,7 @@ class MaterialController extends Controller
               'material_name'=> $material->name,
             'quantity' => $validated['initial_stock'],
             'description' => $validated['description'] ?? 'Added quantity',
+            'created_at' => $validated['created_at'] ?? now(),
         ]);
         
         return redirect()->back()->with('success', 'Quantity added successfully.');
