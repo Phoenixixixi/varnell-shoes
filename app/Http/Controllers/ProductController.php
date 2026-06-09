@@ -73,6 +73,7 @@ class ProductController extends Controller
                         'type' => 'out',
                         'quantity' => $totalRequired,
                         'description' => "Used for product production: {$validated['name']} (Quantity: {$totalStock})",
+                        'created_at' => $validated['created_at'] ?? now(),
                     ]);
                 }
             }
@@ -99,6 +100,7 @@ class ProductController extends Controller
                     'user_id' => auth()->id(),
                     'type' => 'in',
                     'quantity' => $totalStock,
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             }
 
@@ -167,6 +169,7 @@ class ProductController extends Controller
                                 'type' => 'in',
                                 'quantity' => $totalReturn,
                                 'description' => "Stock returned due to recipe change: {$product->name} (Quantity: {$oldStock})",
+                                'created_at' => $validated['created_at'] ?? now(),
                             ]);
                         }
                     }
@@ -197,6 +200,7 @@ class ProductController extends Controller
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Used for production (Recipe changed): {$validated['name']} (Quantity: {$totalStock})",
+                            'created_at' => $validated['created_at'] ?? now(),
                         ]);
                     }
                 }
@@ -227,6 +231,7 @@ class ProductController extends Controller
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Production stock increase: {$validated['name']} (+{$diff})",
+                            'created_at' => $validated['created_at'] ?? now(),
                         ]);
                     }
                 } else {
@@ -243,6 +248,7 @@ class ProductController extends Controller
                             'type' => 'in',
                             'quantity' => $totalReturn,
                             'description' => "Stock returned due to stock decrease: {$validated['name']} (-{$diff})",
+                            'created_at' => $validated['created_at'] ?? now(),
                         ]);
                     }
                 }
@@ -274,6 +280,7 @@ class ProductController extends Controller
                     'user_id' => auth()->id(),
                     'type' => $type,
                     'quantity' => $diff,
+                    'created_at' => $validated['created_at'] ?? now(),
                 ]);
             }
 

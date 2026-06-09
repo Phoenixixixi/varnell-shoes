@@ -13,7 +13,8 @@ class ProductLogs extends Model
         'user_id',
         'type',
         'quantity',
-        'description'
+        'description',
+        'created_at',
     ];
 
 

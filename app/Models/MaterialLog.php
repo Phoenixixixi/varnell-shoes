@@ -15,6 +15,7 @@ class MaterialLog extends Model
         'type',
         'quantity',
         'description',
+        'created_at',
     ];
 
     public function material()
