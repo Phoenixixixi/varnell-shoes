@@ -34,6 +34,7 @@ export default function Materials({ materials }: Props) {
         unit: '',
         initial_stock: '',
         description: '',
+        created_at: '',
     });
     const [isEditing, setIsEditing] = useState<number | null>(null);
 
@@ -63,6 +64,7 @@ export default function Materials({ materials }: Props) {
             unit: material.unit,
             initial_stock: material.current_stock,
             description: '',
+            created_at: material.created_at ? new Date(material.created_at).toISOString().split('T')[0] : '',
         });
         clearErrors();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -128,6 +130,19 @@ export default function Materials({ materials }: Props) {
                                         className={errors.initial_stock ? 'border-red-500' : ''}
                                     />
                                     {errors.initial_stock && <p className="mt-1 text-xs text-red-500">{errors.initial_stock}</p>}
+                                </Field>
+
+                                <Field>
+                                    <FieldLabel htmlFor="created_at">Date Created</FieldLabel>
+                                    <FieldDescription>Custom creation / entry date (optional).</FieldDescription>
+                                    <Input
+                                        id="created_at"
+                                        type="date"
+                                        value={data.created_at}
+                                        onChange={(e) => setData('created_at', e.target.value)}
+                                        className={errors.created_at ? 'border-red-500' : ''}
+                                    />
+                                    {errors.created_at && <p className="mt-1 text-xs text-red-500">{errors.created_at}</p>}
                                 </Field>
 
                                 <Field className="md:col-span-2">
