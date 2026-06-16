@@ -9,6 +9,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
+use App\Services\GoogleAnalyticsService;
+
 class DashboardController extends Controller
 {
     /**
@@ -43,10 +45,15 @@ class DashboardController extends Controller
             'completed_shipments' => Shipment::where('status', 'completed')->count(),
         ];
 
+        // Fetch Google Analytics/Visitor Stats
+        $analyticsService = new GoogleAnalyticsService();
+        $visitorData = $analyticsService->getVisitorData();
+
         return Inertia::render('dashboard', [
             'incomeTrends' => $incomeTrends,
             'shipmentStats' => $shipmentStats,
             'stats' => $stats,
+            'visitorData' => $visitorData,
         ]);
     }
 }
