@@ -22,8 +22,6 @@ interface Props {
         email: string;
         address?: string;
     };
-    midtrans_client_key: string;
-    is_production: boolean;
 }
 
 declare global {
@@ -32,28 +30,11 @@ declare global {
     }
 }
 
-export default function Checkout({ items, total, user, midtrans_client_key, is_production }: Props) {
+export default function Checkout({ items, total, user }: Props) {
     const [address, setAddress] = useState(user.address || '');
     const [phone, setPhone] = useState('');
     const [postalCode, setPostalCode] = useState('');
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        const midtransScriptUrl = is_production 
-            ? "https://app.midtrans.com/snap/snap.js" 
-            : "https://app.sandbox.midtrans.com/snap/snap.js";
-
-        const script = document.createElement('script');
-        script.src = midtransScriptUrl;
-        script.setAttribute('data-client-key', midtrans_client_key);
-        script.async = true;
-
-        document.body.appendChild(script);
-
-        return () => {
-            document.body.removeChild(script);
-        }
-    }, [is_production, midtrans_client_key]);
 
     const handleProcessPayment = async () => {
         if (!address || !phone || !postalCode) {
@@ -92,60 +73,8 @@ export default function Checkout({ items, total, user, midtrans_client_key, is_p
                 return;
             }
 
-            if (data.snap_token) {
-                window.snap.pay(data.snap_token, {
-                    onSuccess: async function (result: any) {
-                        // Immediately notify backend of successful payment
-                        try {
-                            await fetch(route('checkout.finalize'), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                                },
-                                body: JSON.stringify({
-                                    order_id: data.order_id,
-                                    transaction_id: result.transaction_id,
-                                    payment_type: result.payment_type,
-                                    transaction_status: result.transaction_status,
-                                }),
-                            });
-                        } catch (e) {
-                            console.error('Finalize call failed:', e);
-                        }
-                        router.visit(route('shipment.status', { order_id: data.order_id }));
-                    },
-                    onPending: async function (result: any) {
-                        // Still notify backend even for pending (e.g. bank transfer waiting)
-                        try {
-                            await fetch(route('checkout.finalize'), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                                },
-                                body: JSON.stringify({
-                                    order_id: data.order_id,
-                                    transaction_id: result.transaction_id,
-                                    payment_type: result.payment_type,
-                                    transaction_status: result.transaction_status,
-                                }),
-                            });
-                        } catch (e) {
-                            console.error('Finalize call failed:', e);
-                        }
-                        router.visit(route('shipment.status', { order_id: data.order_id }));
-                    },
-                    onError: function (result: any) {
-                        alert("Payment failed!");
-                        console.error(result);
-                    },
-                    onClose: function () {
-                        alert('You closed the popup without finishing the payment');
-                    }
-                });
+            if (data.payment_url) {
+                window.location.href = data.payment_url;
             } else {
                 alert('Error: ' + (data.error || 'Could not initiate payment.'));
             }
@@ -229,7 +158,7 @@ export default function Checkout({ items, total, user, midtrans_client_key, is_p
                                         <CreditCard className="w-6 h-6" strokeWidth={1.5} />
                                     </div>
                                     <div>
-                                        <p className="font-headline text-primary">Midtrans Secure Payment</p>
+                                        <p className="font-headline text-primary">Doku Secure Payment</p>
                                         <p className="text-xs font-body text-on-surface-variant">Credit Card, GoPay, Bank Transfer, and more.</p>
                                     </div>
                                 </div>
@@ -240,7 +169,7 @@ export default function Checkout({ items, total, user, midtrans_client_key, is_p
                         <div className="space-y-8">
                             <div className="bg-surface-container-low rounded-3xl p-10 border border-outline-variant editorial-shadow">
                                 <h2 className="text-2xl font-headline text-primary mb-8 italic">Order Summary</h2>
-                                
+
                                 <div className="space-y-6 mb-10">
                                     {items.map((item, i) => (
                                         <div key={i} className="flex gap-4">
@@ -271,7 +200,7 @@ export default function Checkout({ items, total, user, midtrans_client_key, is_p
                                     </div>
                                 </div>
 
-                                <button 
+                                <button
                                     onClick={handleProcessPayment}
                                     disabled={loading}
                                     className="w-full py-5 bg-primary text-white rounded-xl text-sm font-label font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-3 hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50"
@@ -279,7 +208,7 @@ export default function Checkout({ items, total, user, midtrans_client_key, is_p
                                     {loading ? 'Processing...' : 'Complete Payment'}
                                     <ShieldCheck className="w-4 h-4" />
                                 </button>
-                                
+
                                 <div className="mt-8 grid grid-cols-2 gap-4">
                                     <div className="flex items-center gap-2 text-[10px] font-label text-primary/40 tracking-widest uppercase">
                                         <Truck className="w-3 h-3" />

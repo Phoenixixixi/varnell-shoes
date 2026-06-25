@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { CreditCard, Printer, TrendingUp, Clock, CheckCircle, RefreshCw, List, ShieldCheck } from 'lucide-react';
+import { CreditCard, Printer, TrendingUp, Clock, CheckCircle, RefreshCw, Smartphone, Building2, QrCode, Wallet } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
-import axios from 'axios';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -35,6 +33,9 @@ interface Order {
         status?: string;
         method?: string;
         midtrans_transaction_id?: string;
+        // Doku-sourced fields resolved on page load
+        doku_status?: string;
+        doku_method?: string;
     };
     items: Array<{
         id: number;
@@ -44,16 +45,6 @@ interface Order {
             name: string;
         };
     }>;
-}
-
-interface MidtransTransaction {
-    transaction_id: string;
-    order_id: string;
-    gross_amount: string;
-    payment_type: string;
-    transaction_status: string;
-    transaction_time: string;
-    settlement_time?: string;
 }
 
 interface Props {
@@ -67,9 +58,8 @@ interface Props {
 
 export default function PaymentsPage({ orders, stats }: Props) {
     const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
-    const [midtransHistory, setMidtransHistory] = useState<MidtransTransaction[]>([]);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    console.log(orders)
 
     const handlePrint = (order: Order) => {
         setPrintingOrder(order);
@@ -77,28 +67,6 @@ export default function PaymentsPage({ orders, stats }: Props) {
             window.print();
             setPrintingOrder(null);
         }, 100);
-    };
-
-    const fetchMidtransHistory = async () => {
-        setIsLoadingHistory(true);
-        setIsHistoryOpen(true);
-        try {
-            const response = await axios.get(route('admin.payments.history'));
-            if (response.data && response.data.transactions) {
-                setMidtransHistory(response.data.transactions);
-            }
-        } catch (error) {
-            console.error('Failed to fetch Midtrans history', error);
-        } finally {
-            setIsLoadingHistory(false);
-        }
-    };
-
-    const handleReconcile = (tx: MidtransTransaction) => {
-        router.post(route('admin.payments.reconcile'), {
-            transaction_id: tx.transaction_id,
-            order_id: tx.order_id
-        });
     };
 
     const getStatusVariant = (status: string) => {
@@ -121,8 +89,47 @@ export default function PaymentsPage({ orders, stats }: Props) {
         }
     };
 
-    const isMatched = (midtransTxId: string) => {
-        return orders.some(order => order.payment?.midtrans_transaction_id === midtransTxId);
+    /**
+     * Map Doku raw paymentChannel codes to human-readable labels + icons.
+     * Doku Non-SNAP returns values like: QRIS, VIRTUAL_ACCOUNT_BCA, CREDIT_CARD, etc.
+     */
+    const DOKU_METHOD_MAP: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+        // QRIS
+        QRIS: { label: 'QRIS', icon: <QrCode className="w-3.5 h-3.5" />, color: 'text-purple-500' },
+        // BCA
+        VIRTUAL_ACCOUNT_BCA: { label: 'BCA Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-blue-500' },
+        // Mandiri
+        VIRTUAL_ACCOUNT_MANDIRI: { label: 'Mandiri Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-yellow-600' },
+        // BNI
+        VIRTUAL_ACCOUNT_BNI: { label: 'BNI Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-orange-500' },
+        // BRI
+        VIRTUAL_ACCOUNT_BRI: { label: 'BRI Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-sky-500' },
+        // Permata
+        VIRTUAL_ACCOUNT_PERMATA: { label: 'Permata Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-teal-500' },
+        // CIMB
+        VIRTUAL_ACCOUNT_CIMB: { label: 'CIMB Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-red-500' },
+        // Danamon
+        VIRTUAL_ACCOUNT_DANAMON: { label: 'Danamon Virtual Account', icon: <Building2 className="w-3.5 h-3.5" />, color: 'text-rose-500' },
+        // Credit Card
+        CREDIT_CARD: { label: 'Credit Card', icon: <CreditCard className="w-3.5 h-3.5" />, color: 'text-indigo-500' },
+        // GoPay / Wallet
+        GOPAY: { label: 'GoPay', icon: <Wallet className="w-3.5 h-3.5" />, color: 'text-green-500' },
+        OVO: { label: 'OVO', icon: <Wallet className="w-3.5 h-3.5" />, color: 'text-purple-600' },
+        DANA: { label: 'DANA', icon: <Wallet className="w-3.5 h-3.5" />, color: 'text-blue-600' },
+        LINKAJA: { label: 'LinkAja', icon: <Wallet className="w-3.5 h-3.5" />, color: 'text-red-600' },
+        SHOPEEPAY: { label: 'ShopeePay', icon: <Wallet className="w-3.5 h-3.5" />, color: 'text-orange-600' },
+        // Convenience Store
+        CONVENIENCE_STORE_ALFAMART: { label: 'Alfamart', icon: <Smartphone className="w-3.5 h-3.5" />, color: 'text-red-500' },
+        CONVENIENCE_STORE_INDOMARET: { label: 'Indomaret', icon: <Smartphone className="w-3.5 h-3.5" />, color: 'text-red-400' },
+    };
+
+    const formatDokuMethod = (raw?: string): { label: string; icon: React.ReactNode; color: string } => {
+        if (!raw) return { label: '—', icon: <CreditCard className="w-3.5 h-3.5" />, color: 'text-muted-foreground' };
+        const key = raw.toUpperCase().replace(/-/g, '_');
+        if (DOKU_METHOD_MAP[key]) return DOKU_METHOD_MAP[key];
+        // Fallback: prettify the raw string
+        const pretty = raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        return { label: pretty, icon: <CreditCard className="w-3.5 h-3.5" />, color: 'text-muted-foreground' };
     };
 
     return (
@@ -130,16 +137,14 @@ export default function PaymentsPage({ orders, stats }: Props) {
             <Head title="Payments Management" />
 
             <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8 print:hidden">
-                {/* Header Actions */}
+                {/* Header */}
                 <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-headline text-primary">Financial Overview</h2>
-                    <Button 
-                        onClick={fetchMidtransHistory} 
-                        className="bg-secondary text-white hover:bg-secondary/90 gap-2"
-                    >
-                        <ShieldCheck className="w-4 h-4" />
-                        Midtrans Reconcile
-                    </Button>
+                    <div>
+                        <h2 className="text-2xl font-headline text-primary">Financial Overview</h2>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Payment statuses are synced from Doku automatically on page load.
+                        </p>
+                    </div>
                 </div>
 
                 {/* Stats Cards */}
@@ -182,7 +187,7 @@ export default function PaymentsPage({ orders, stats }: Props) {
                 {/* Orders Table */}
                 <Card className="border-sidebar-border/70 bg-transparent shadow-sm overflow-hidden">
                     <CardHeader className="bg-muted/30 border-b border-sidebar-border/70">
-                        <CardTitle className="text-lg font-headline">Internal Transaction Records</CardTitle>
+                        <CardTitle className="text-lg font-headline">Transaction Records</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
@@ -192,8 +197,8 @@ export default function PaymentsPage({ orders, stats }: Props) {
                                         <TableHead className="font-bold">Order Details</TableHead>
                                         <TableHead className="font-bold">Customer</TableHead>
                                         <TableHead className="font-bold">Amount</TableHead>
-                                        <TableHead className="font-bold">Method</TableHead>
-                                        <TableHead className="font-bold">System Status</TableHead>
+                                        <TableHead className="font-bold">Method (Doku)</TableHead>
+                                        <TableHead className="font-bold">Status (Doku)</TableHead>
                                         <TableHead className="text-right font-bold">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -204,7 +209,7 @@ export default function PaymentsPage({ orders, stats }: Props) {
                                                 <div className="flex flex-col gap-1">
                                                     <span className="font-bold">#{order.id}</span>
                                                     <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[120px]" title={order.payment?.midtrans_transaction_id}>
-                                                        {order.payment?.midtrans_transaction_id || 'ID Pending'}
+                                                        {order.payment?.midtrans_order_id || 'Doku ID Pending'}
                                                     </span>
                                                     <span className="text-[10px] text-muted-foreground">
                                                         {format(new Date(order.created_at), 'MMM d, yyyy HH:mm')}
@@ -226,19 +231,22 @@ export default function PaymentsPage({ orders, stats }: Props) {
                                                         <CreditCard className="w-3.5 h-3.5 text-secondary" />
                                                     </div>
                                                     <span className="text-xs font-bold uppercase tracking-tight">
-                                                        {(order.payment?.method || order.payment?.payment_type)?.replace(/_/g, ' ') || 'TBD'}
+                                                        {(order.payment?.doku_method || order.payment?.method || order.payment?.payment_type)?.replace(/_/g, ' ') || '—'}
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1.5">
-                                                    <Badge variant={getStatusVariant(order.payment?.status || order.status)} className="w-fit text-[10px] py-0 px-2 font-bold uppercase">
-                                                        {(order.payment?.status || order.status)}
+                                                    <Badge
+                                                        variant={getStatusVariant(order.payment?.doku_status || order.payment?.status || order.status)}
+                                                        className="w-fit text-[10px] py-0 px-2 font-bold uppercase"
+                                                    >
+                                                        {order.payment?.doku_status || order.payment?.status || order.status}
                                                     </Badge>
                                                     {order.payment?.transaction_status && (
                                                         <div className="flex items-center gap-1 text-[9px] font-bold text-muted-foreground uppercase">
                                                             <div className={`w-1.5 h-1.5 rounded-full ${order.payment.transaction_status === 'settlement' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                                                            API: {order.payment.transaction_status}
+                                                            {order.payment.transaction_status}
                                                         </div>
                                                     )}
                                                 </div>
@@ -251,7 +259,7 @@ export default function PaymentsPage({ orders, stats }: Props) {
                                                             size="icon"
                                                             onClick={() => router.post(route('admin.payments.sync', order.payment!.id))}
                                                             className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-white transition-colors"
-                                                            title="Cloud Sync"
+                                                            title="Sync from Doku"
                                                         >
                                                             <RefreshCw className="h-4 w-4" />
                                                         </Button>
@@ -276,100 +284,7 @@ export default function PaymentsPage({ orders, stats }: Props) {
                 </Card>
             </div>
 
-            {/* Midtrans History Modal */}
-            <Dialog open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
-                <DialogContent className="sm:max-w-[900px] max-h-[80vh] overflow-hidden flex flex-col p-0 border-sidebar-border shadow-2xl">
-                    <DialogHeader className="p-6 bg-muted/30 border-b border-sidebar-border">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-secondary/10">
-                                <List className="w-5 h-5 text-secondary" />
-                            </div>
-                            <div>
-                                <DialogTitle className="font-headline text-xl">Midtrans Cloud Transactions</DialogTitle>
-                                <DialogDescription className="text-xs text-muted-foreground mt-1 italic">
-                                    Real-time payment history from Midtrans production/sandbox servers.
-                                </DialogDescription>
-                            </div>
-                        </div>
-                    </DialogHeader>
-
-                    <div className="flex-1 overflow-y-auto p-0">
-                        {isLoadingHistory ? (
-                            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                <RefreshCw className="w-10 h-10 text-secondary animate-spin opacity-20" />
-                                <p className="text-sm font-label font-bold uppercase tracking-widest text-muted-foreground">Fetching live data...</p>
-                            </div>
-                        ) : (
-                            <Table>
-                                <TableHeader className="bg-muted/10 sticky top-0 z-10">
-                                    <TableRow>
-                                        <TableHead className="font-bold text-[10px] uppercase">Midtrans Order ID</TableHead>
-                                        <TableHead className="font-bold text-[10px] uppercase">Amount</TableHead>
-                                        <TableHead className="font-bold text-[10px] uppercase">Type</TableHead>
-                                        <TableHead className="font-bold text-[10px] uppercase">Status</TableHead>
-                                        <TableHead className="font-bold text-[10px] uppercase">Time</TableHead>
-                                        <TableHead className="text-right font-bold text-[10px] uppercase">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {midtransHistory.map((tx) => {
-                                        const matched = isMatched(tx.transaction_id);
-                                        return (
-                                            <TableRow key={tx.transaction_id} className={matched ? 'bg-green-500/5 opacity-60' : 'hover:bg-muted/10'}>
-                                                <TableCell className="font-mono text-xs">
-                                                    <div className="flex flex-col">
-                                                        <span className="font-bold">{tx.order_id}</span>
-                                                        <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{tx.transaction_id}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="font-bold text-xs">
-                                                    IDR {Number(tx.gross_amount).toLocaleString('id-ID')}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className="text-[9px] py-0 font-bold uppercase border-sidebar-border">
-                                                        {tx.payment_type}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant={getStatusVariant(tx.transaction_status)} className="text-[9px] py-0 font-bold uppercase">
-                                                        {tx.transaction_status}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-[10px] text-muted-foreground">
-                                                    {format(new Date(tx.transaction_time), 'MMM d, HH:mm')}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    {matched ? (
-                                                        <div className="flex items-center justify-end gap-1 text-[10px] font-bold text-green-600 uppercase">
-                                                            <CheckCircle className="w-3 h-3" />
-                                                            Synced
-                                                        </div>
-                                                    ) : (
-                                                        <Button 
-                                                            size="sm" 
-                                                            variant="secondary"
-                                                            className="h-7 text-[10px] font-bold uppercase px-3"
-                                                            onClick={() => handleReconcile(tx)}
-                                                        >
-                                                            Reconcile
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        )}
-                    </div>
-                    
-                    <DialogFooter className="p-4 bg-muted/30 border-t border-sidebar-border">
-                        <Button variant="outline" onClick={() => setIsHistoryOpen(false)}>Close Registry</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Printable Invoice Logic */}
+            {/* Printable Invoice */}
             {printingOrder && (
                 <div className="fixed inset-0 z-[9999] hidden bg-white p-12 print:block">
                     <div className="mx-auto max-w-2xl border-2 border-black p-8">
@@ -402,7 +317,7 @@ export default function PaymentsPage({ orders, stats }: Props) {
                             </div>
                             <div className="text-right text-sm">
                                 <p className="font-bold">Payment Method:</p>
-                                <p>{printingOrder.payment?.payment_type?.toUpperCase() || 'N/A'}</p>
+                                <p>{(printingOrder.payment?.doku_method || printingOrder.payment?.payment_type)?.toUpperCase() || 'N/A'}</p>
                                 <p className="mt-2 font-bold">Total Price:</p>
                                 <p className="text-lg font-bold">IDR {Number(printingOrder.total_price).toLocaleString()}</p>
                             </div>

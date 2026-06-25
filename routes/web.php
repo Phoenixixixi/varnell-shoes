@@ -65,8 +65,6 @@ Route::middleware(['admin'])->group(function () {
         Route::patch('shipment/{id}', [\App\Http\Controllers\ShipmentController::class, 'update'])->name('shipment.update');
         Route::get('payments', [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments');
         Route::post('payments/{id}/sync', [\App\Http\Controllers\PaymentController::class, 'sync'])->name('payments.sync');
-        Route::get('payments/history', [\App\Http\Controllers\PaymentController::class, 'history'])->name('payments.history');
-        Route::post('payments/reconcile', [\App\Http\Controllers\PaymentController::class, 'reconcile'])->name('payments.reconcile');
     });
 });
 

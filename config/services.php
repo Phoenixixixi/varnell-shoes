@@ -35,12 +35,13 @@ return [
         ],
     ],
 
-    'midtrans' => [
-        'server_key' => env('MIDTRANS_SERVER_KEY'),
-        'client_key' => env('MIDTRANS_CLIENT_KEY'),
-        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
-        'is_sanitized' => env('MIDTRANS_IS_SANITIZED', true),
-        'is_3ds' => env('MIDTRANS_IS_3DS', true),
+    'doku' => [
+        'client_id'          => env('DOKU_CLIENT_ID'),
+        'secret_key'         => env('DOKU_SECRET_KEY'),
+        'is_production'      => env('DOKU_IS_PRODUCTION', false),
+        'private_key_path'   => env('DOKU_PRIVATE_KEY_PATH', 'storage/app/doku/pkcs8.key'),
+        'public_key_path'    => env('DOKU_PUBLIC_KEY_PATH', 'storage/app/doku/public.pem'),
+        'doku_public_key_file' => env('DOKU_PUBLIC_KEY_FILE', 'storage/app/doku/doku_public.pem'),
     ],
 
 ];

@@ -39,8 +39,6 @@ interface Shipment {
 
 interface Props {
     shipment: Shipment;
-    midtrans_client_key: string;
-    is_production: boolean;
 }
 
 declare global {
@@ -49,27 +47,8 @@ declare global {
     }
 }
 
-export default function ShipmentStatus({ shipment, midtrans_client_key, is_production }: Props) {
+export default function ShipmentStatus({ shipment }: Props) {
     const [loadingPayment, setLoadingPayment] = useState(false);
-
-    useEffect(() => {
-        const midtransScriptUrl = is_production
-            ? "https://app.midtrans.com/snap/snap.js"
-            : "https://app.sandbox.midtrans.com/snap/snap.js";
-
-        const script = document.createElement('script');
-        script.src = midtransScriptUrl;
-        script.setAttribute('data-client-key', midtrans_client_key);
-        script.async = true;
-
-        document.body.appendChild(script);
-
-        return () => {
-            if (document.body.contains(script)) {
-                document.body.removeChild(script);
-            }
-        }
-    }, [is_production, midtrans_client_key]);
 
     const handleRepay = async () => {
         setLoadingPayment(true);
@@ -86,34 +65,8 @@ export default function ShipmentStatus({ shipment, midtrans_client_key, is_produ
 
             const data = await response.json();
 
-            if (data.snap_token) {
-                window.snap.pay(data.snap_token, {
-                    onSuccess: async function (result: any) {
-                        // Immediately notify backend of successful payment
-                        try {
-                            await fetch(route('checkout.finalize'), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '',
-                                },
-                                body: JSON.stringify({
-                                    order_id: shipment.order.id,
-                                    transaction_id: result.transaction_id,
-                                    payment_type: result.payment_type,
-                                    transaction_status: result.transaction_status,
-                                }),
-                            });
-                        } catch (e) {
-                            console.error('Finalize call failed:', e);
-                        }
-                        router.reload();
-                    },
-                    onPending: function () { router.reload(); },
-                    onError: function () { alert("Payment failed!"); },
-                    onClose: function () { setLoadingPayment(false); }
-                });
+            if (data.payment_url) {
+                window.location.href = data.payment_url;
             } else {
                 alert('Error: ' + (data.error || 'Could not initiate payment.'));
             }

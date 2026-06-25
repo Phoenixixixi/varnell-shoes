@@ -4,27 +4,164 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\Payment;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class PaymentController extends Controller
 {
-    public function __construct()
+    /**
+     * Build Doku Non-SNAP signature for GET requests (no body).
+     */
+    private function buildSignature(string $requestId, string $timestamp, string $requestTarget): string
     {
-        \Midtrans\Config::$serverKey = config('services.midtrans.server_key');
-        \Midtrans\Config::$isProduction = config('services.midtrans.is_production');
+        $clientId = config('services.doku.client_id');
+        $secretKey = config('services.doku.secret_key');
+
+        $stringToSign = "Client-Id:{$clientId}\n"
+            ."Request-Id:{$requestId}\n"
+            ."Request-Timestamp:{$timestamp}\n"
+            ."Request-Target:{$requestTarget}";
+
+        return 'HMACSHA256='.base64_encode(hash_hmac('sha256', $stringToSign, $secretKey, true));
     }
 
     /**
-     * Display a listing of payments/orders.
+     * Fetch the latest status for a single payment from Doku Non-SNAP API.
+     * Returns the parsed status data or null on failure.
+     */
+    private function fetchDokuOrderStatus(string $invoiceNumber): ?array
+    {
+        $clientId = config('services.doku.client_id');
+        $isProduction = config('services.doku.is_production');
+        $baseUrl = $isProduction ? 'https://api.doku.com' : 'https://api-sandbox.doku.com';
+        $endpoint = '/orders/v1/status/'.$invoiceNumber;
+
+        $requestId = (string) Str::uuid();
+        $timestamp = gmdate('Y-m-d\TH:i:s\Z');
+        $signature = $this->buildSignature($requestId, $timestamp, $endpoint);
+
+        $response = Http::withHeaders([
+            'Client-Id' => $clientId,
+            'Request-Id' => $requestId,
+            'Request-Timestamp' => $timestamp,
+            'Signature' => $signature,
+        ])->get($baseUrl.$endpoint);
+
+        if (! $response->successful()) {
+            Log::warning('PaymentController fetchDokuOrderStatus failed', [
+                'invoice' => $invoiceNumber,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return null;
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Resolve Doku status string to our internal status values.
+     * Returns ['payment_status' => ..., 'transaction' => ...]
+     */
+    private function resolveDokuStatus(string $rawStatus): array
+    {
+        $upper = strtoupper($rawStatus);
+
+        if (in_array($upper, ['SUCCESS', 'SUCCESSFUL', 'PAID', '00'])) {
+            return ['payment_status' => 'success', 'transaction' => 'settlement'];
+        }
+
+        if (in_array($upper, ['FAILED', 'CANCEL', 'EXPIRED', '06'])) {
+            return ['payment_status' => 'failure', 'transaction' => 'failed'];
+        }
+
+        return ['payment_status' => 'pending', 'transaction' => 'pending'];
+    }
+
+    /**
+     * Display admin payments page.
+     *
+     * Auto-syncs all pending payments against Doku before rendering so that
+     * the data shown is always up-to-date — no separate reconcile step needed.
+     * Only payments that are still 'pending' and created within the last 7 days
+     * are synced to avoid unnecessary API calls for old orders.
      */
     public function index()
     {
+        Log::info('PaymentController index called');
+
+        // ── Auto-sync pending payments from Doku ──────────────────────────────
+        $pendingPayments = Payment::where('transaction_status', 'pending')
+            ->whereNotNull('midtrans_order_id')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->get();
+
+        foreach ($pendingPayments as $payment) {
+            try {
+                $statusData = $this->fetchDokuOrderStatus($payment->midtrans_order_id);
+
+                Log::info('DOKU Order Status Response', [
+                    'order_id' => $payment->midtrans_order_id,
+                    'response' => $statusData,
+                ]);
+
+                if (! $statusData) {
+                    continue;
+                }
+
+                $rawStatus = $statusData['transaction']['status']
+                    ?? $statusData['latestTransactionStatus']
+                    ?? $statusData['order']['status']
+                    ?? 'pending';
+
+                $resolved = $this->resolveDokuStatus($rawStatus);
+
+                $payment->update([
+                    'transaction_status' => $resolved['transaction'],
+                    'status' => $resolved['payment_status'],
+                    'method' => $statusData['paymentChannel']
+                        ?? $statusData['payment']['payment_channel']
+                        ?? $payment->method
+                        ?? 'Doku',
+                    'payment_type' => $statusData['paymentChannel']
+                        ?? $statusData['payment']['payment_channel']
+                        ?? $payment->payment_type
+                        ?? 'Doku',
+                    'midtrans_transaction_id' => $statusData['transactionId']
+                        ?? $statusData['originalReferenceNo']
+                        ?? $payment->midtrans_transaction_id,
+                    'payment_time' => now(),
+                ]);
+
+                // Update order status if resolved
+                if ($resolved['payment_status'] === 'success') {
+                    $payment->order()->update(['status' => 'processing']);
+                } elseif ($resolved['payment_status'] === 'failure') {
+                    $payment->order()->update(['status' => 'cancelled']);
+                }
+
+            } catch (\Exception $e) {
+                Log::error('PaymentController auto-sync error for '.$payment->midtrans_order_id.': '.$e->getMessage());
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────────
+
         $orders = Order::with(['user', 'payment', 'items.product'])
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($order) {
+                if ($order->payment) {
+                    $order->payment->doku_status = $order->payment->status ?? 'pending';
+                    $order->payment->doku_method = $order->payment->method
+                        ?? $order->payment->payment_type
+                        ?? 'Doku';
+                }
+
+                return $order;
+            });
 
         $stats = [
             'total_revenue' => Order::whereIn('status', ['processing', 'completed'])->sum('total_price'),
@@ -39,137 +176,59 @@ class PaymentController extends Controller
     }
 
     /**
-     * Sync payment status from Midtrans API for a specific payment.
+     * Manually sync a single payment record from Doku (admin action via sync button).
      */
     public function sync($id)
     {
         $payment = Payment::findOrFail($id);
-        
+
+        if (! $payment->midtrans_order_id) {
+            return back()->with('error', 'No invoice number found to sync.');
+        }
+
         try {
-            if (!$payment->midtrans_transaction_id) {
-                return back()->with('error', 'No transaction ID found to sync.');
+            $statusData = $this->fetchDokuOrderStatus($payment->midtrans_order_id);
+
+            if (! $statusData) {
+                return back()->with('error', 'Doku returned an error. Check logs for details.');
             }
 
-            $status = \Midtrans\Transaction::status($payment->midtrans_transaction_id);
-            
-            $paymentStatus = 'pending';
-            if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
-                $paymentStatus = 'success';
-            } else if ($status->transaction_status == 'deny' || $status->transaction_status == 'expire' || $status->transaction_status == 'cancel') {
-                $paymentStatus = 'failure';
-            }
+            $rawStatus = $statusData['transaction']['status']
+                ?? $statusData['latestTransactionStatus']
+                ?? $statusData['order']['status']
+                ?? 'pending';
+
+            $resolved = $this->resolveDokuStatus($rawStatus);
 
             $payment->update([
-                'transaction_status' => $status->transaction_status,
-                'status' => $paymentStatus,
-                'method' => $status->payment_type,
-                'payment_type' => $status->payment_type,
-                'payment_time' => $status->settlement_time ?? $status->transaction_time,
+                'transaction_status' => $resolved['transaction'],
+                'status' => $resolved['payment_status'],
+                'method' => $statusData['paymentChannel']
+                    ?? $statusData['payment']['payment_channel']
+                    ?? $payment->method
+                    ?? 'Doku',
+                'payment_type' => $statusData['paymentChannel']
+                    ?? $statusData['payment']['payment_channel']
+                    ?? $payment->payment_type
+                    ?? 'Doku',
+                'midtrans_transaction_id' => $statusData['transactionId']
+                    ?? $statusData['originalReferenceNo']
+                    ?? $payment->midtrans_transaction_id,
+                'payment_time' => now(),
             ]);
 
-            if ($paymentStatus == 'success') {
-                $payment->order->update(['status' => 'processing']);
+            if ($resolved['payment_status'] === 'success') {
+                $payment->order()->update(['status' => 'processing']);
+            } elseif ($resolved['payment_status'] === 'failure') {
+                $payment->order()->update(['status' => 'cancelled']);
             }
 
-            return back()->with('success', 'Payment status synced with Midtrans.');
+            return back()->with('success', 'Payment synced from Doku: '.strtoupper($resolved['payment_status']));
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Sync failed: ' . $e->getMessage());
-        }
-    }
+            Log::error('PaymentController sync error: '.$e->getMessage());
 
-    /**
-     * Fetch transaction history from Midtrans.
-     */
-    public function history()
-    {
-        $serverKey = config('services.midtrans.server_key');
-        $isProduction = config('services.midtrans.is_production');
-        $baseUrl = $isProduction 
-            ? 'https://api.midtrans.com/v2' 
-            : 'https://api.sandbox.midtrans.com/v2';
-
-        if (!$serverKey) {
-            return response()->json(['error' => 'Midtrans Server Key is not configured.'], 500);
-        }
-
-        try {
-            $response = Http::withBasicAuth($serverKey, '')
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
-                ])
-                ->get($baseUrl . '/transactions', [
-                    'page' => 1,
-                    'per_page' => 50,
-                ]);
-
-            if ($response->successful()) {
-                return response()->json($response->json());
-            }
-
-            return response()->json([
-                'error' => 'Midtrans API Error: ' . $response->body(),
-                'status' => $response->status()
-            ], $response->status() ?: 500);
-            
-        } catch (\Exception $e) {
-            Log::error('Midtrans History Exception: ' . $e->getMessage());
-            return response()->json(['error' => 'Connection Error: ' . $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * Reconcile a single transaction from Midtrans with our database.
-     */
-    public function reconcile(Request $request)
-    {
-        $midtransId = $request->transaction_id;
-        $orderId = $request->order_id;
-
-        try {
-            $status = \Midtrans\Transaction::status($midtransId);
-            
-            $payment = Payment::where('midtrans_transaction_id', $midtransId)->first();
-            
-            if (!$payment) {
-                if (preg_match('/VARNELL-(\d+)/', $orderId, $matches)) {
-                    $localOrderId = $matches[1];
-                    $order = Order::find($localOrderId);
-                    if ($order) {
-                        $payment = $order->payment ?: new Payment(['order_id' => $order->id]);
-                    }
-                }
-            }
-
-            if (!$payment) {
-                return back()->with('error', 'Could not find a matching order in our database.');
-            }
-
-            $paymentStatus = 'pending';
-            if ($status->transaction_status == 'settlement' || $status->transaction_status == 'capture') {
-                $paymentStatus = 'success';
-            } else if ($status->transaction_status == 'deny' || $status->transaction_status == 'expire' || $status->transaction_status == 'cancel') {
-                $paymentStatus = 'failure';
-            }
-
-            $payment->fill([
-                'midtrans_transaction_id' => $status->transaction_id,
-                'transaction_status' => $status->transaction_status,
-                'status' => $paymentStatus,
-                'method' => $status->payment_type,
-                'payment_type' => $status->payment_type,
-                'payment_time' => $status->settlement_time ?? $status->transaction_time,
-            ])->save();
-
-            if ($paymentStatus == 'success') {
-                $payment->order->update(['status' => 'processing']);
-            }
-
-            return back()->with('success', 'Transaction reconciled successfully.');
-
-        } catch (\Exception $e) {
-            return back()->with('error', 'Reconciliation failed: ' . $e->getMessage());
+            return back()->with('error', 'Sync failed: '.$e->getMessage());
         }
     }
 }
