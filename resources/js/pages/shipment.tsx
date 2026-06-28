@@ -1,16 +1,17 @@
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, Truck, Box, CheckCircle, Edit2, MapPin, ExternalLink, Printer } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AppLayout from '@/layouts/app-layout';
+import { getTrackingData } from '@/lib/getTrackingData';
+import { type BreadcrumbItem } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
+import { Box, CheckCircle, Clock, Edit2, Eye, MapPin, Printer, Truck } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -41,11 +42,14 @@ interface Shipment {
     tracking_details?: TrackingDetails;
     order: {
         id: number;
-        shippind_address?: {
-            street?: string;
-            postal_code?: string;
-            phone?: string;
-        } | string | null;
+        shippind_address?:
+            | {
+                  street?: string;
+                  postal_code?: string;
+                  phone?: string;
+              }
+            | string
+            | null;
         user: {
             name: string;
         };
@@ -71,6 +75,9 @@ interface Props {
 export default function ShipmentPage({ shipments, stats }: Props) {
     const [editingShipment, setEditingShipment] = useState<Shipment | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isShow, setIsShow] = useState(false);
+    const [errorTracking, setErrorTracking] = useState('');
+    const [trackingData, setTrackingData] = useState(null);
 
     const { data, setData, patch, processing, reset } = useForm({
         status: '',
@@ -82,7 +89,7 @@ export default function ShipmentPage({ shipments, stats }: Props) {
         const address = shipment.order?.shippind_address;
         const customerName = shipment.order?.user?.name || 'Customer';
         const orderId = shipment.order_id;
-        
+
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
@@ -172,16 +179,36 @@ export default function ShipmentPage({ shipments, stats }: Props) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
-                return <Badge variant="outline" className="border-yellow-200 bg-yellow-50 text-yellow-700 font-medium">Pending</Badge>;
+                return (
+                    <Badge variant="outline" className="border-yellow-200 bg-yellow-50 font-medium text-yellow-700">
+                        Pending
+                    </Badge>
+                );
             case 'progress':
             case 'sent_to_courier':
-                return <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 font-medium">In Progress</Badge>;
+                return (
+                    <Badge variant="outline" className="border-blue-200 bg-blue-50 font-medium text-blue-700">
+                        In Progress
+                    </Badge>
+                );
             case 'packaging':
-                return <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700 font-medium">Packaging</Badge>;
+                return (
+                    <Badge variant="outline" className="border-purple-200 bg-purple-50 font-medium text-purple-700">
+                        Packaging
+                    </Badge>
+                );
             case 'completed':
-                return <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 font-medium">Completed</Badge>;
+                return (
+                    <Badge variant="outline" className="border-green-200 bg-green-50 font-medium text-green-700">
+                        Completed
+                    </Badge>
+                );
             default:
-                return <Badge variant="outline" className="font-medium">{status}</Badge>;
+                return (
+                    <Badge variant="outline" className="font-medium">
+                        {status}
+                    </Badge>
+                );
         }
     };
 
@@ -208,6 +235,34 @@ export default function ShipmentPage({ shipments, stats }: Props) {
         });
     };
 
+    const showTrackingExternal = async (tracking_number: string, courier: string) => {
+        setIsShow(true);
+        const apiKey = import.meta.env.VITE_BINDER_BYTE_API_KEY;
+
+        if (!tracking_number) {
+            setErrorTracking('No Tracking Number');
+            return;
+        }
+
+        if (!courier) {
+            setErrorTracking('No Courier');
+            return;
+        }
+
+        try {
+            const response = await getTrackingData(tracking_number, courier);
+            setTrackingData(response);
+        } catch (error) {
+            console.error('error fetching api', error);
+            if (error instanceof Error) {
+                setErrorTracking(error.message);
+            } else {
+                setErrorTracking('error while fetching api');
+            }
+            return;
+        }
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Shipments" />
@@ -215,14 +270,17 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                 {/* Stats Summary */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     {statCards.map((card) => (
-                        <Card key={card.title} className="border-sidebar-border/70 shadow-sm overflow-hidden hover:border-sidebar-border transition-colors">
+                        <Card
+                            key={card.title}
+                            className="border-sidebar-border/70 hover:border-sidebar-border overflow-hidden shadow-sm transition-colors"
+                        >
                             <CardContent className="flex items-center gap-4 p-6">
                                 <div className={`rounded-xl ${card.bg} p-3`}>
                                     <card.icon className={`h-6 w-6 ${card.color}`} />
                                 </div>
                                 <div>
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{card.title}</p>
-                                    <h3 className="text-2xl font-bold mt-1">{card.count}</h3>
+                                    <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{card.title}</p>
+                                    <h3 className="mt-1 text-2xl font-bold">{card.count}</h3>
                                 </div>
                             </CardContent>
                         </Card>
@@ -230,9 +288,9 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                 </div>
 
                 {/* Shipment Table */}
-                <Card className="border-sidebar-border/70 bg-transparent shadow-sm overflow-hidden">
-                    <CardHeader className="bg-muted/30 border-b border-sidebar-border/70">
-                        <CardTitle className="text-lg font-headline">Order Shipments</CardTitle>
+                <Card className="border-sidebar-border/70 overflow-hidden bg-transparent shadow-sm">
+                    <CardHeader className="bg-muted/30 border-sidebar-border/70 border-b">
+                        <CardTitle className="font-headline text-lg">Order Shipments</CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
@@ -256,10 +314,12 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                                                 <TableCell className="font-medium">#{shipment.order_id}</TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-primary">{shipment.order?.user?.name || 'Unknown'}</span>
+                                                        <span className="text-primary font-semibold">{shipment.order?.user?.name || 'Unknown'}</span>
                                                         {shipment.order?.shippind_address && (
-                                                            <div className="text-xs text-muted-foreground mt-1 max-w-[200px]">
-                                                                <p className="truncate" title={shipment.order.shippind_address.street}>{shipment.order.shippind_address.street}</p>
+                                                            <div className="text-muted-foreground mt-1 max-w-[200px] text-xs">
+                                                                <p className="truncate" title={shipment.order.shippind_address.street}>
+                                                                    {shipment.order.shippind_address.street}
+                                                                </p>
                                                                 <p>Postal: {shipment.order.shippind_address.postal_code}</p>
                                                                 <p>Phone: {shipment.order.shippind_address.phone}</p>
                                                             </div>
@@ -269,46 +329,76 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         {shipment.order?.payment?.status === 'success' ? (
-                                                            <Badge className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20">Success</Badge>
+                                                            <Badge className="border-green-500/20 bg-green-500/10 text-green-600 hover:bg-green-500/20">
+                                                                Success
+                                                            </Badge>
                                                         ) : (
-                                                            <Badge variant="outline" className="text-yellow-600 border-yellow-500/20">Pending</Badge>
+                                                            <Badge variant="outline" className="border-yellow-500/20 text-yellow-600">
+                                                                Pending
+                                                            </Badge>
                                                         )}
-                                                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{shipment.order?.payment?.method || 'N/A'}</span>
+                                                        <span className="text-muted-foreground text-[10px] tracking-widest uppercase">
+                                                            {shipment.order?.payment?.method || 'N/A'}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex flex-col gap-1">
                                                         <span className="text-sm font-medium">{shipment.courier || '-'}</span>
-                                                        <span className="font-mono text-xs text-muted-foreground">{shipment.tracking_number || 'No tracking'}</span>
+                                                        <span className="text-muted-foreground font-mono text-xs">
+                                                            {shipment.tracking_number || 'No tracking'}
+                                                        </span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {shipment.tracking_details ? (
                                                         <div className="flex flex-col gap-1">
-                                                            <div className="flex items-center gap-2 text-xs font-semibold text-secondary">
+                                                            <div className="text-secondary flex items-center gap-2 text-xs font-semibold">
                                                                 <Truck className="h-3 w-3" />
                                                                 {shipment.tracking_details.status}
                                                             </div>
-                                                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                            <div className="text-muted-foreground flex items-center gap-1 text-[10px]">
                                                                 <MapPin className="h-2.5 w-2.5" />
                                                                 {shipment.tracking_details.position}
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground italic">N/A</span>
+                                                        <span className="text-muted-foreground text-xs italic">N/A</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{getStatusBadge(shipment.status)}</TableCell>
-                                                <TableCell className="text-xs text-muted-foreground">
+                                                <TableCell className="text-muted-foreground text-xs">
                                                     {format(new Date(shipment.created_at), 'MMM d, yyyy')}
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <Button variant="ghost" size="icon" onClick={() => handlePrint(shipment)} className="h-8 w-8 hover:bg-primary hover:text-white transition-colors" title="Print Shipping Label">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handlePrint(shipment)}
+                                                            className="hover:bg-primary h-8 w-8 transition-colors hover:text-white"
+                                                            title="Print Shipping Label"
+                                                        >
                                                             <Printer className="h-4 w-4" />
                                                         </Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleEdit(shipment)} className="h-8 w-8 hover:bg-secondary hover:text-white transition-colors">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleEdit(shipment)}
+                                                            className="hover:bg-secondary h-8 w-8 transition-colors hover:text-white"
+                                                        >
                                                             <Edit2 className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            // onClick={() => showTrackingExternal(shipment.tracking_number, shipment.courier)}
+                                                            onClick={() =>
+                                                                showTrackingExternal(shipment.tracking_number, shipment.courier?.toLocaleLowerCase())
+                                                            }
+                                                            className="hover:bg-secondary h-8 w-8 transition-colors hover:text-white"
+                                                        >
+                                                            <Eye className="h-4 w-4" />
                                                         </Button>
                                                     </div>
                                                 </TableCell>
@@ -316,7 +406,7 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                                            <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
                                                 No shipments found.
                                             </TableCell>
                                         </TableRow>
@@ -328,19 +418,112 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                 </Card>
             </div>
 
+            <Dialog
+                open={isShow}
+                onOpenChange={(open) => {
+                    setIsShow(open);
+
+                    if (!open) {
+                        setTrackingData(null);
+                        setErrorTracking('');
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Tracking Details</DialogTitle>
+                    </DialogHeader>
+
+                    {errorTracking && <div className="rounded-md bg-red-100 p-3 text-red-600">{errorTracking}</div>}
+
+                    {trackingData?.data && (
+                        <div className="space-y-6">
+                            {/* SUMMARY */}
+                            <div className="space-y-2 rounded-lg border p-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold">Shipment Summary</h2>
+                                    <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">
+                                        {trackingData?.data?.summary?.status}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <p>
+                                        <span className="font-medium">AWB:</span> {trackingData?.data?.summary?.awb}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Courier:</span> {trackingData?.data?.summary?.courier}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Service:</span> {trackingData?.data?.summary?.service}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Weight:</span> {trackingData?.data?.summary?.weight}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Amount:</span> Rp {trackingData?.data?.summary?.amount}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Date:</span> {trackingData?.data?.summary?.date}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* DETAIL */}
+                            <div className="space-y-3 rounded-lg border p-4">
+                                <h2 className="text-lg font-semibold">Shipment Detail</h2>
+
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <p>
+                                        <span className="font-medium">Origin:</span> {trackingData?.data?.detail?.origin}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Destination:</span> {trackingData?.data?.detail?.destination}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Shipper:</span> {trackingData?.data?.detail?.shipper}
+                                    </p>
+                                    <p>
+                                        <span className="font-medium">Receiver:</span> {trackingData?.data?.detail?.receiver}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* HISTORY */}
+                            <div className="rounded-lg border p-4">
+                                <h2 className="mb-4 text-lg font-semibold">Tracking History</h2>
+
+                                <div className="space-y-4">
+                                    {trackingData?.data?.history?.map((item: any, index: number) => (
+                                        <div key={index} className="relative flex gap-3 border-l-2 pl-4">
+                                            <div className="absolute top-1 -left-[7px] h-3 w-3 rounded-full bg-blue-500"></div>
+
+                                            <div>
+                                                <p className="text-sm text-gray-500">{item.date}</p>
+                                                <p className="font-medium">{item.desc}</p>
+                                                {item.location && <p className="text-sm text-gray-500">{item.location}</p>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
             {/* Edit Dialog */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-[425px] border-sidebar-border shadow-2xl">
+                <DialogContent className="border-sidebar-border shadow-2xl sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle className="font-headline text-xl">Update Shipment</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-6 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="status" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</Label>
-                            <Select
-                                value={data.status}
-                                onValueChange={(value) => setData('status', value)}
-                            >
+                            <Label htmlFor="status" className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+                                Status
+                            </Label>
+                            <Select value={data.status} onValueChange={(value) => setData('status', value)}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
@@ -354,42 +537,44 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="courier" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Courier Name</Label>
+                            <Label htmlFor="courier" className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+                                Courier Name
+                            </Label>
                             <Input
                                 id="courier"
                                 value={data.courier}
-                                onChange={(e) => setData('courier', e.target.value)}
+                                onChange={(e) => setData('courier', e.target.value.toLocaleLowerCase())}
                                 placeholder="e.g. JNE, FedEx, DHL"
                                 className="bg-muted/10 border-sidebar-border"
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="tracking_number" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tracking Number</Label>
+                            <Label htmlFor="tracking_number" className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+                                Tracking Number
+                            </Label>
                             <div className="relative">
                                 <Input
                                     id="tracking_number"
                                     value={data.tracking_number}
                                     onChange={(e) => setData('tracking_number', e.target.value)}
                                     placeholder="Enter tracking number"
-                                    className="bg-muted/10 border-sidebar-border font-mono pr-10"
+                                    className="bg-muted/10 border-sidebar-border pr-10 font-mono"
                                 />
                                 {data.tracking_number && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <Truck className="h-4 w-4 text-secondary opacity-50" />
+                                    <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                                        <Truck className="text-secondary h-4 w-4 opacity-50" />
                                     </div>
                                 )}
                             </div>
-                            <p className="text-[10px] text-muted-foreground italic mt-1">
-                                Integrating with external API for real-time tracking.
-                            </p>
+                            <p className="text-muted-foreground mt-1 text-[10px] italic">Integrating with external API for real-time tracking.</p>
                         </div>
 
                         <DialogFooter className="pt-4">
                             <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={processing}>
                                 Cancel
                             </Button>
-                            <Button type="submit" className="bg-secondary text-white hover:bg-secondary/90" disabled={processing}>
+                            <Button type="submit" className="bg-secondary hover:bg-secondary/90 text-white" disabled={processing}>
                                 {processing ? 'Updating...' : 'Save Changes'}
                             </Button>
                         </DialogFooter>
