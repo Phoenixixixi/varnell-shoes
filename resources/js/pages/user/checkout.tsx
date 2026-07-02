@@ -54,7 +54,7 @@ export default function Checkout({ items, total, user }: Props) {
                 },
                 body: JSON.stringify({
                     items,
-                    total,
+                    total: parseInt(total),
                     address: {
                         street: address,
                         phone: phone,
@@ -62,7 +62,6 @@ export default function Checkout({ items, total, user }: Props) {
                     }
                 }),
             });
-
             const text = await response.text();
             let data;
             try {
