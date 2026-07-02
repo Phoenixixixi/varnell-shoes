@@ -9,9 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import { getTrackingData } from '@/lib/getTrackingData';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Box, CheckCircle, Clock, Edit2, Eye, MapPin, Printer, Truck } from 'lucide-react';
+import { Box, CheckCircle, Clock, Edit2, Eye, MapPin, Printer, Search, Truck } from 'lucide-react';
 import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -43,13 +43,13 @@ interface Shipment {
     order: {
         id: number;
         shippind_address?:
-            | {
-                  street?: string;
-                  postal_code?: string;
-                  phone?: string;
-              }
-            | string
-            | null;
+        | {
+            street?: string;
+            postal_code?: string;
+            phone?: string;
+        }
+        | string
+        | null;
         user: {
             name: string;
         };
@@ -67,23 +67,62 @@ interface Stats {
     completed: number;
 }
 
-interface Props {
-    shipments: Shipment[];
-    stats: Stats;
+interface PaginatedShipments {
+    data: Shipment[];
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
+    current_page: number;
+    last_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
+    total: number;
 }
 
-export default function ShipmentPage({ shipments, stats }: Props) {
+interface Props {
+    shipments: PaginatedShipments;
+    stats: Stats;
+    filters: {
+        status?: string;
+        courier?: string;
+    };
+}
+
+export default function ShipmentPage({ shipments, stats, filters }: Props) {
     const [editingShipment, setEditingShipment] = useState<Shipment | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isShow, setIsShow] = useState(false);
     const [errorTracking, setErrorTracking] = useState('');
     const [trackingData, setTrackingData] = useState(null);
 
+    const [statusFilter, setStatusFilter] = useState(filters?.status || 'all');
+    const [courierFilter, setCourierFilter] = useState(filters?.courier || '');
+
     const { data, setData, patch, processing, reset } = useForm({
         status: '',
         courier: '',
         tracking_number: '',
     });
+
+    const handleFilter = (newStatus?: string, newCourier?: string) => {
+        const query: any = {};
+        const activeStatus = newStatus !== undefined ? newStatus : statusFilter;
+        const activeCourier = newCourier !== undefined ? newCourier : courierFilter;
+
+        if (activeStatus && activeStatus !== 'all') {
+            query.status = activeStatus;
+        }
+        if (activeCourier) {
+            query.courier = activeCourier;
+        }
+
+        router.get(route('admin.shipment'), query, {
+            preserveState: true,
+            replace: true,
+        });
+    };
 
     const handlePrint = (shipment: Shipment) => {
         const address = shipment.order?.shippind_address;
@@ -252,6 +291,7 @@ export default function ShipmentPage({ shipments, stats }: Props) {
         try {
             const response = await getTrackingData(tracking_number, courier);
             setTrackingData(response);
+
         } catch (error) {
             console.error('error fetching api', error);
             if (error instanceof Error) {
@@ -287,10 +327,53 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                     ))}
                 </div>
 
-                {/* Shipment Table */}
+                {/* Filters and Shipment Table */}
                 <Card className="border-sidebar-border/70 overflow-hidden bg-transparent shadow-sm">
-                    <CardHeader className="bg-muted/30 border-sidebar-border/70 border-b">
+                    <CardHeader className="bg-muted/30 border-sidebar-border/70 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <CardTitle className="font-headline text-lg">Order Shipments</CardTitle>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                            <div className="w-[160px]">
+                                <Select
+                                    value={statusFilter}
+                                    onValueChange={(val) => {
+                                        setStatusFilter(val);
+                                        handleFilter(val, undefined);
+                                    }}
+                                >
+                                    <SelectTrigger className="bg-muted/10 border-sidebar-border">
+                                        <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Statuses</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="packaging">Packaging</SelectItem>
+                                        <SelectItem value="sent_to_courier">In Transit</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="relative w-full sm:w-[220px]">
+                                <Input
+                                    value={courierFilter}
+                                    onChange={(e) => setCourierFilter(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleFilter(undefined, courierFilter);
+                                        }
+                                    }}
+                                    placeholder="Search Courier..."
+                                    className="bg-muted/10 border-sidebar-border pr-8"
+                                />
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleFilter(undefined, courierFilter)}
+                                    className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:bg-transparent"
+                                >
+                                    <Search className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
@@ -308,8 +391,8 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {shipments.length > 0 ? (
-                                        shipments.map((shipment) => (
+                                    {shipments.data.length > 0 ? (
+                                        shipments.data.map((shipment) => (
                                             <TableRow key={shipment.id} className="hover:bg-muted/10 transition-colors">
                                                 <TableCell className="font-medium">#{shipment.order_id}</TableCell>
                                                 <TableCell>
@@ -406,7 +489,7 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
+                                            <TableCell colSpan={8} className="text-muted-foreground h-24 text-center">
                                                 No shipments found.
                                             </TableCell>
                                         </TableRow>
@@ -415,6 +498,40 @@ export default function ShipmentPage({ shipments, stats }: Props) {
                             </Table>
                         </div>
                     </CardContent>
+
+                    {/* Pagination Links */}
+                    {shipments.links && shipments.links.length > 3 && (
+                        <div className="border-sidebar-border/70 flex items-center justify-between border-t px-6 py-4">
+                            <div className="text-muted-foreground text-xs">
+                                Showing page {shipments.current_page} of {shipments.last_page} ({shipments.total} shipments)
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {shipments.links.map((link, idx) => {
+                                    if (link.url === null) {
+                                        return (
+                                            <span
+                                                key={idx}
+                                                className="border-sidebar-border/70 text-muted-foreground/45 cursor-not-allowed rounded-md border px-3 py-1.5 text-xs font-medium"
+                                                dangerouslySetInnerHTML={{ __html: link.label }}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <Link
+                                            key={idx}
+                                            href={link.url}
+                                            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-all ${link.active
+                                                ? 'bg-primary border-primary text-white'
+                                                : 'border-sidebar-border/70 text-primary hover:bg-muted/15'
+                                                }`}
+                                            dangerouslySetInnerHTML={{ __html: link.label }}
+                                            preserveState
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </Card>
             </div>
 

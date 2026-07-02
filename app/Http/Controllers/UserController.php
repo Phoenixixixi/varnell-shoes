@@ -21,4 +21,8 @@ class UserController extends Controller
     public function craftsmanship(){
         return Inertia::render('user/craftsmanship');
     }
+
+    public function heritage(){
+        return Inertia::render('user/heritage');
+    }
 }

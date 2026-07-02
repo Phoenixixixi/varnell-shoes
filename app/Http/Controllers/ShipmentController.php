@@ -36,9 +36,19 @@ class ShipmentController extends Controller
         ]);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $shipments = Shipment::with(['order.user', 'order.payment'])->latest()->get();
+        $query = Shipment::with(['order.user', 'order.payment']);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('courier')) {
+            $query->where('courier', 'like', '%' . $request->courier . '%');
+        }
+
+        $shipments = $query->latest()->paginate(10)->withQueryString();
 
         $stats = [
             'pending' => Shipment::where('status', 'pending')->count(),
@@ -47,8 +57,8 @@ class ShipmentController extends Controller
             'completed' => Shipment::where('status', 'completed')->count(),
         ];
 
-        // Add tracking details for each shipment that has a tracking number
-        foreach ($shipments as $shipment) {
+        // Add tracking details only for the paginated shipments
+        foreach ($shipments->items() as $shipment) {
             if ($shipment->tracking_number && $shipment->courier) {
                 $shipment->tracking_details = $this->getTrackingDetails($shipment->tracking_number, $shipment->courier);
             }
@@ -57,6 +67,7 @@ class ShipmentController extends Controller
         return Inertia::render('shipment', [
             'shipments' => $shipments,
             'stats' => $stats,
+            'filters' => $request->only(['status', 'courier']),
         ]);
     }
 

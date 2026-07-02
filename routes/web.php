@@ -8,7 +8,7 @@ Route::get('/collections', [\App\Http\Controllers\CollectionController::class, '
 Route::get('/collections/{collection}', [\App\Http\Controllers\CollectionController::class, 'show'])->name('collections.show');
 
 Route::get('/craftsmanship', [\App\Http\Controllers\UserController::class, 'craftsmanship'])->name('craftsmanship');
-Route::get('/heritage', [\App\Http\Controllers\UserController::class, 'craftsmanship'])->name('heritage');
+Route::get('/heritage', [\App\Http\Controllers\UserController::class, 'heritage'])->name('heritage');
 
 Route::middleware('guest')->group(function () {
     Route::get('/sign-in', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('user.login');
