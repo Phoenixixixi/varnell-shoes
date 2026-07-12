@@ -247,10 +247,10 @@ export default function Heritage() {
                                 Explore the Collection
                             </a>
                             <a
-                                href="/craftsmanship"
+                                href="/consument-care"
                                 className="inline-block border border-primary/20 text-primary px-12 py-5 rounded-full font-label text-sm font-bold tracking-[0.2em] uppercase hover:bg-surface-container-low transition-all active:scale-95"
                             >
-                                See Our Craftsmanship
+                                Contact Consument Care
                             </a>
                         </div>
                     </div>

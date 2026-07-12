@@ -104,6 +104,13 @@ export default function MyShipments({ shipments }: Props) {
         }
     };
 
+    const params = new URLSearchParams(window.location.search);
+    const currentStatus = params.get('status') || 'all';
+
+    const handleFilterChange = (status: string) => {
+        router.get(route('shipment.index'), { status }, { preserveState: true });
+    };
+
     return (
         <UserLayoutApp>
             <Head title="My Orders - Varnell" />
@@ -113,6 +120,23 @@ export default function MyShipments({ shipments }: Props) {
                     <div className="mb-12 space-y-2">
                         <h1 className="text-4xl font-headline text-primary">My Orders</h1>
                         <p className="font-body text-on-surface-variant italic">Track your collections and craftsmanship.</p>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-2 overflow-x-auto pb-4 mb-8 scrollbar-hide">
+                        {['all', 'pending', 'packaging', 'sent_to_courier', 'completed'].map((status) => (
+                            <button
+                                key={status}
+                                onClick={() => handleFilterChange(status)}
+                                className={`px-4 py-2 rounded-full text-xs font-label font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                                    currentStatus === status
+                                        ? 'bg-primary text-white'
+                                        : 'bg-surface-container-low text-primary/60 hover:bg-surface-container-high'
+                                }`}
+                            >
+                                {status === 'all' ? 'All Orders' : getStatusLabel(status)}
+                            </button>
+                        ))}
                     </div>
 
                     {shipments.length > 0 ? (

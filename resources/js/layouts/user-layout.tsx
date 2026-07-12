@@ -1,9 +1,24 @@
 import Header from "@/components/user/header"
-import { Head } from "@inertiajs/react"
+import { Head, usePage } from "@inertiajs/react"
 import Footer from "@/components/user/footer"
 import "@/pages/user/user.css"
+import { Toaster } from "@/components/ui/sonner"
+import { toast } from "sonner"
+import { useEffect } from "react"
 
 export default function UserLayoutApp({ children }: { children: React.ReactNode }) {
+    const { props } = usePage();
+    const flash = props.flash as { success?: string; error?: string } | undefined;
+
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash]);
+
     return (
         <>
             <Head title="Welcome">
@@ -16,7 +31,7 @@ export default function UserLayoutApp({ children }: { children: React.ReactNode 
                 {children}
             </div>
             <Footer />
-
+            <Toaster position="bottom-right" />
         </>
     )
 }

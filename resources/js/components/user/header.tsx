@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 
 export default function Header() {
     const { url, props } = usePage()
-    const { auth } = props as any;
+    const { auth, cartCount } = props as any;
     const [mobileOpen, setMobileOpen] = useState(false)
 
     // Lock body scroll when mobile menu is open
@@ -26,7 +26,7 @@ export default function Header() {
     let navLink: NavLink[] = [
         { name: 'Home', link: "/", active: url === "/" },
         { name: "Collections", link: "/collections", active: url === "/collections" },
-        { name: "Craftsmanship", link: "/craftsmanship", active: url === "/craftsmanship" },
+        { name: "Consument Care", link: "/consument-care", active: url === "/consument-care" },
         { name: "Heritage", link: "/heritage", active: url === "/heritage" },
     ]
 
@@ -70,8 +70,13 @@ export default function Header() {
                     <button className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
                         <Search className="w-[22px] h-[22px]" strokeWidth={1.5} />
                     </button>
-                    <a href={route('cart.index')} className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary">
+                    <a href={route('cart.index')} className="relative hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary">
                         <ShoppingBag className="w-[22px] h-[22px]" strokeWidth={1.5} />
+                        {cartCount > 0 && (
+                            <span className="absolute -top-1.5 -right-2 bg-secondary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                {cartCount}
+                            </span>
+                        )}
                     </a>
                     <a href={userLink} className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
                         <User className="w-[22px] h-[22px]" strokeWidth={1.5} />
@@ -163,7 +168,14 @@ export default function Header() {
                             <span className="text-sm font-medium tracking-wide">{userLabel}</span>
                         </a>
                         <a href={route('cart.index')} className="flex items-center gap-3 py-3 text-primary/70 hover:text-primary transition-colors duration-200">
-                            <ShoppingBag className="w-5 h-5" strokeWidth={1.5} />
+                            <div className="relative">
+                                <ShoppingBag className="w-5 h-5" strokeWidth={1.5} />
+                                {cartCount > 0 && (
+                                    <span className="absolute -top-1.5 -right-2 bg-secondary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                        {cartCount}
+                                    </span>
+                                )}
+                            </div>
                             <span className="text-sm font-medium tracking-wide">Shopping Bag</span>
                         </a>
                     </div>

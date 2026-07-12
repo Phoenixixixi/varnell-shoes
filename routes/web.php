@@ -7,7 +7,8 @@ Route::get('/', [\App\Http\Controllers\UserController::class, 'index'])->name('l
 Route::get('/collections', [\App\Http\Controllers\CollectionController::class, 'index'])->name('collections');
 Route::get('/collections/{collection}', [\App\Http\Controllers\CollectionController::class, 'show'])->name('collections.show');
 
-Route::get('/craftsmanship', [\App\Http\Controllers\UserController::class, 'craftsmanship'])->name('craftsmanship');
+Route::get('/consument-care', [\App\Http\Controllers\UserController::class, 'consumentCare'])->name('consument-care');
+Route::post('/consument-care', [\App\Http\Controllers\UserController::class, 'storeConsumentCare'])->name('consument-care.store');
 Route::get('/heritage', [\App\Http\Controllers\UserController::class, 'heritage'])->name('heritage');
 
 Route::middleware('guest')->group(function () {

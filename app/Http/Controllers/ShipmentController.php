@@ -17,12 +17,19 @@ use Inertia\Inertia;
 
 class ShipmentController extends Controller
 {
-    public function userIndex()
+    public function userIndex(Request $request)
     {
         $user = auth()->user();
-        $shipments = Shipment::whereHas('order', function ($query) use ($user) {
+        
+        $query = Shipment::whereHas('order', function ($query) use ($user) {
             $query->where('user_id', $user->id);
-        })->with(['order.items.product.images', 'order.payment'])->latest()->get();
+        })->with(['order.items.product.images', 'order.payment']);
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $shipments = $query->latest()->get();
 
         // Add tracking details for each shipment that has a tracking number
         foreach ($shipments as $shipment) {

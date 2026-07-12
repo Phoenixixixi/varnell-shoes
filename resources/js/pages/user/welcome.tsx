@@ -28,7 +28,7 @@ export default function Welcome({ product }: any) {
                         </div>
                         <div className="flex-1 relative w-full aspect-square md:aspect-auto md:h-[819px] group">
                             <div className="absolute inset-0 bg-secondary-container/20 rounded-[4rem] rotate-3 scale-95 transition-transform duration-700 group-hover:rotate-0"></div>
-                            <img className="w-full h-full object-cover rounded-[3rem] editorial-shadow relative z-10 transition-transform duration-700 group-hover:-translate-y-4" data-alt="ultra-high-quality close-up of a single luxury brown leather oxford shoe resting on lush vibrant green grass with soft morning dew and natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDz6Rc3GLjT_eBp4EawN5_PY0J7CwTwL43poy9Y2Bn--9tqz-ALJJ_q5KRDT_qLjUk8RiVIc6-BOqlsCKGa3x1937ruvKIML1KcOM1iMbkmLafQI3xVlSWjgs8-5ji34VD5vL8g9x-oY4DfX0nt4844TYxuCTFPJieM2YROBeEAEFT9HTUquN6txwwAgro2hGtld15CAwBPHxfB6fE3p4aseB6xbtHnlJ9SHSTJznu-4CfxofuTi4OIc9ozL3TxydrQLoZ_W6tgg64X" />
+                            <img className="w-full h-full object-cover rounded-[3rem] editorial-shadow relative z-10 transition-transform duration-700 group-hover:-translate-y-4" data-alt="ultra-high-quality close-up of a single luxury brown leather oxford shoe resting on lush vibrant green grass with soft morning dew and natural lighting" src="images/home/8.webp" />
                             <div className="absolute -bottom-8 -right-8 w-48 h-48 bg-surface-container-low rounded-full flex items-center justify-center p-8 z-20 text-center editorial-shadow">
                                 <span className="text-xs font-bold font-label text-primary tracking-widest uppercase italic">100% Hand-Crafted</span>
                             </div>
@@ -44,12 +44,11 @@ export default function Welcome({ product }: any) {
                                 </p>
                                 <div className="flex gap-4 items-center group cursor-pointer">
                                     <span className="text-sm font-bold font-label tracking-widest uppercase border-b border-secondary">Read Our Story</span>
-                                    <span className="material-symbols-outlined text-secondary transform group-hover:translate-x-2 transition-transform">arrow_right_alt</span>
                                 </div>
                             </div>
                             <div className="md:col-span-7 grid grid-cols-2 gap-6">
-                                <img className="w-full h-[400px] object-cover rounded-xl mt-12 editorial-shadow" data-alt="black and white artistic close-up of artisan hands stitching thick leather with heavy waxed thread in a traditional sunlit workshop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpmlbfPUNfuo183lco83jGd7sCan1S_ZwdB5Jp7GPBL5X0AcCSVqmh39Pn3jsWl96h8JBEOAFdqPRH2PYFAjYAfR37BSoy52MCaD2Lbytya4-gXcWIFbgreIKMjjhKnptCcelE8TsfAaA61ZfhyWYtRc4WNB5oKAgYhcTcKPfsp-rX64Ir9HpJROsJCWMLLHVSv3GfzFTLVfsCDrZ-bTetIlmvf5Hmg8iHEUNKNfN96RAGQFNArWO_kqOZBuZmX4ysWQi-21BpgBb-" />
-                                <img className="w-full h-[400px] object-cover rounded-xl editorial-shadow" data-alt="vintage leather workshop background with rolls of tanned hides and cobbler tools on a worn wooden table" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaDBfzlsA7Xz9GQVL5SgUe4yfuSzFPQl9Vbu1dmM7tI_YNbcReo73kxjSinJeyIXjUQRsK4G2_E41NbNKdNLahKXwDjI1RGZRaUYgAO75X_vG0YQYvGuD1t_MGoUQDSmmE3uh6BK4CsfpV7olvvCm35BTNUADO64w5wCfYebNeTHHiESAVOSDiia4T04X4cuTz6tUtbKMUVmI9fSyczRXD3S47yIlTgs3R7SAlVfb57aUg87FE8UZOk3fvEyzbB5lVNZGYZoxMfL-w" />
+                                <img className="w-full h-[400px] object-cover rounded-xl mt-12 editorial-shadow" data-alt="black and white artistic close-up of artisan hands stitching thick leather with heavy waxed thread in a traditional sunlit workshop" src="images/home/22-06 (1) - ENHANCED.webp" />
+                                <img className="w-full h-[400px] object-cover rounded-xl editorial-shadow" data-alt="vintage leather workshop background with rolls of tanned hides and cobbler tools on a worn wooden table" src="images/home/15.webp" />
                             </div>
                         </div>
                     </section>
@@ -124,10 +123,10 @@ export default function Welcome({ product }: any) {
                         <div className="max-w-7xl mx-auto">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-24 items-center">
                                 <div className="relative">
-                                    <img className="w-full aspect-square object-cover rounded-[1rem] editorial-shadow relative z-10" data-alt="macro photograph of rich pebbled leather texture showing natural grain and a deep forest green hue" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaRbETf-X5hy3B4legxMMvV1WE1vcGfoFwr13F4YOL3ah5ASpk_wBJYmwxi3ASE26yAJmsDR7e2ZLepTUiy-0aZxDsh5ALO7d-JJVA6xUJJoHnmX8fvfrzzykRAuY-J6G5BAWODL8bEkQot1SgLz9Btrr-o_FL3HDTwZVB8r1QcBvZ3dvAZleHTy578puIjOor7rDMmoCNwQcJ5dCmVGYtZu2dMRh-L7c2iAosZQ9QNA_yA10st2bB8CwcZbwijQOMilCvhBIj5WRL" />
+                                    <img className="w-full aspect-square object-cover rounded-[1rem] editorial-shadow relative z-10" data-alt="macro photograph of rich pebbled leather texture showing natural grain and a deep forest green hue" src="images/home/28-05.webp" />
                                     <div className="absolute -top-12 -left-12 w-64 h-64 bg-secondary/10 rounded-full blur-3xl"></div>
                                     <div className="absolute -bottom-16 -right-16 md:block hidden">
-                                        <img className="w-64 h-64 object-cover rounded-xl border-[12px] border-surface-container-low editorial-shadow z-20" data-alt="detail of a master craftsman using a silver tool to edge a piece of raw leather" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZ8iNH4qfGQ50-xYOnXlj1gsp8dMPUwRu_bHkkjnlMlx1CAPqqaOuEwJveDlIbryFgQyvE2aHUHIaNxXFzQf6jXPbvptUZfk3e1lB8Gpdi_nPDTDMmjmFUb6oeLpfg4E6BXha5W7yblLXz8H3Bwwn_m5pD451SWSLnVKutM23uWxv9o04g9tZC5_m8t-VJve1r3U3Kp3YSnWoAC9l0jp6Re2ou_-7iT_6jsaMp2LOvTilMV4F11v13mIyb5jGwLXFNLy-ZUqmaxyz2" />
+                                        <img className="w-64 h-64 object-cover rounded-xl border-[12px] border-surface-container-low editorial-shadow z-20" data-alt="detail of a master craftsman using a silver tool to edge a piece of raw leather" src="images/home/29-06 (2).webp" />
                                     </div>
                                 </div>
                                 <div className="space-y-10">
@@ -171,9 +170,8 @@ export default function Welcome({ product }: any) {
                                 <h2 className="text-4xl md:text-6xl font-headline leading-tight italic text-white">Join the Varnell Circle.</h2>
                                 <p className="text-lg opacity-90 font-body text-white/80">Receive exclusive access to seasonal drops and stories from the workshop. No clutter, just craft.</p>
                                 <form className="flex flex-col md:flex-row gap-4">
-                                    <input className="flex-1 bg-surface-container-low/20 backdrop-blur-md border border-on-primary/20 rounded-xl px-6 py-4 text-on-primary placeholder:text-on-primary/60 focus:ring-2 focus:ring-secondary outline-none transition-all" placeholder="Your email address" type="email" />
                                     <button className="bg-secondary text-on-primary px-8 py-4 rounded-xl font-label text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-all active:scale-95">
-                                        Subscribe
+                                        Register
                                     </button>
                                 </form>
                             </div>

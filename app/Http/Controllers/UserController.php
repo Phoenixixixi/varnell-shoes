@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 
-use Illuminate\Http\Request;
-use Inertia\Inertia;
 use App\Models\Product;
+use App\Models\ConsumentCare;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class UserController extends Controller
 {
@@ -18,8 +20,31 @@ class UserController extends Controller
         ]);
     }
 
-    public function craftsmanship(){
-        return Inertia::render('user/craftsmanship');
+    public function consumentCare(){
+        return Inertia::render('user/consument-care');
+    }
+
+    public function storeConsumentCare(Request $request)
+    {
+        $rules = [
+            'messages' => 'required|string|min:5|max:5000',
+        ];
+
+        if (!Auth::check()) {
+            $rules['name'] = 'required|string|max:255';
+            $rules['email'] = 'required|email|max:255';
+        }
+
+        $validated = $request->validate($rules);
+
+        ConsumentCare::create([
+            'user_id' => Auth::check() ? Auth::id() : null,
+            'name' => Auth::check() ? Auth::user()->name : $validated['name'],
+            'email' => Auth::check() ? Auth::user()->email : $validated['email'],
+            'messages' => $validated['messages'],
+        ]);
+
+        return back()->with('success', 'Thank you for reaching out. We have received your inquiry.');
     }
 
     public function heritage(){
