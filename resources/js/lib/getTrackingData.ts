@@ -18,7 +18,7 @@ export const getTrackingData = async (tracking_number: string, courier: string, 
     if (phone) {
         const last5 = phone.replace(/\D/g, '').slice(-5);
         if (last5.length === 5) {
-            params.set('waybill_number', last5);
+            params.set('number', last5);
         }
     }
 
