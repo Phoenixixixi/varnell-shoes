@@ -23,8 +23,10 @@ class MaterialDashboardController extends Controller
         $lowStockItems = Material::where('current_stock', '<', 5)->count();
 
         // ── 7-day flow (global) ─────────────────────────────────────────────
-        $stockIn7d  = MaterialLog::where('type', 'in')->where('created_at', '>=', $sevenDaysAgo)->sum('quantity');
-        $stockOut7d = MaterialLog::where('type', 'out')->where('created_at', '>=', $sevenDaysAgo)->sum('quantity');
+        // Use updated_at (set by the DB server clock) instead of created_at
+        // to avoid timezone skew between the app (UTC) and the DB server.
+        $stockIn7d  = MaterialLog::where('type', 'in')->where('updated_at', '>=', $sevenDaysAgo)->sum('quantity');
+        $stockOut7d = MaterialLog::where('type', 'out')->where('updated_at', '>=', $sevenDaysAgo)->sum('quantity');
 
         $sevenDayFlow = [
             'stockIn'  => (float) $stockIn7d,
@@ -38,11 +40,10 @@ class MaterialDashboardController extends Controller
             ->toArray();
 
         // ── Raw logs — last 12 months, all materials ────────────────────────
-        // We send raw per-material monthly data so the frontend can slice it
-        // by item and/or month without extra round-trips.
+        // Use updated_at for the range filter (DB server clock) and for grouping.
         $rawLogs = MaterialLog::whereIn('type', ['in', 'out'])
-            ->where('created_at', '>=', $twelveMonthsAgo)
-            ->select('material_id', 'material_name', 'type', 'quantity', 'created_at')
+            ->where('updated_at', '>=', $twelveMonthsAgo)
+            ->select('material_id', 'material_name', 'type', 'quantity', 'updated_at')
             ->get();
 
         // Build structure:
@@ -51,7 +52,7 @@ class MaterialDashboardController extends Controller
         $globalMonthMap = [];
 
         foreach ($rawLogs as $log) {
-            $key = Carbon::parse($log->created_at)->format('Y-m');
+            $key = Carbon::parse($log->updated_at)->format('Y-m');
             $mid = $log->material_id ?? 0;
 
             // global monthly totals
