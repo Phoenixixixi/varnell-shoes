@@ -48,6 +48,7 @@ Route::middleware(['admin'])->group(function () {
         return redirect()->route('admin.dashboard');
         });
         Route::get('dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+        Route::get('material-dashboard', [\App\Http\Controllers\MaterialDashboardController::class, 'index'])->name('material-dashboard');
 
         Route::get('products/export', [\App\Http\Controllers\ProductController::class, 'export'])->name('product.export');
         Route::resource('products', \App\Http\Controllers\ProductController::class)->names('product');

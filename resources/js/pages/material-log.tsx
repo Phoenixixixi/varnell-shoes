@@ -122,7 +122,7 @@ export default function MaterialLogs({ logs }: Props) {
                                                     {log.description || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground text-xs">
-                                                    {format(new Date(log.created_at), 'PPP p')}
+                                                    {format(new Date(log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z'), 'PPP p')}
                                                 </TableCell>
                                             </TableRow>
                                         ))
