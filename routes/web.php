@@ -11,6 +11,8 @@ Route::get('/consument-care', [\App\Http\Controllers\UserController::class, 'con
 Route::post('/consument-care', [\App\Http\Controllers\UserController::class, 'storeConsumentCare'])->name('consument-care.store');
 Route::get('/heritage', [\App\Http\Controllers\UserController::class, 'heritage'])->name('heritage');
 
+Route::get('/api/products/search', [\App\Http\Controllers\ProductController::class, 'search'])->name('products.search');
+
 Route::middleware('guest')->group(function () {
     Route::get('/sign-in', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'create'])->name('user.login');
     Route::get('/sign-up', [\App\Http\Controllers\Auth\RegisteredUserController::class, 'create'])->name('user.register');

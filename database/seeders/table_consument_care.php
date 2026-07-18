@@ -12,6 +12,6 @@ class table_consument_care extends Seeder
      */
     public function run(): void
     {
-        //
+        DB::table
     }
 }

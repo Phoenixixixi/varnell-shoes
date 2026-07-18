@@ -1,11 +1,39 @@
 import { Search, ShoppingBag, User, Menu, X } from "lucide-react"
 import { usePage } from "@inertiajs/react"
 import { useState, useEffect } from "react"
+import { assetUrl } from "@/lib/asset-url"
 
 export default function Header() {
     const { url, props } = usePage()
     const { auth, cartCount } = props as any;
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [showDesktopSearch, setShowDesktopSearch] = useState(false);
+
+    useEffect(() => {
+        if (searchQuery.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(() => {
+            setIsSearching(true);
+            fetch(`/api/products/search?q=${searchQuery}`)
+                .then(res => res.json())
+                .then(data => {
+                    setSearchResults(data);
+                    setIsSearching(false);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setIsSearching(false);
+                });
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
 
     // Lock body scroll when mobile menu is open
     useEffect(() => {
@@ -44,7 +72,7 @@ export default function Header() {
     return (
         <>
             {/* ── Top Bar ── */}
-            <nav className="fixed top-0 w-full z-50 flex justify-between items-center px-6 md:px-12 py-5 max-w-none backdrop-blur-md"
+            <nav className="fixed top-0 w-full h-20 z-50 flex justify-between items-center px-6 md:px-12 max-w-none backdrop-blur-md"
                 style={{ backgroundColor: "rgba(250, 250, 245, 0.85)" }}>
 
                 {/* Logo */}
@@ -67,9 +95,84 @@ export default function Header() {
 
                 {/* Right-side actions */}
                 <div className="flex items-center gap-5">
-                    <button className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary hidden md:inline-flex">
-                        <Search className="w-[22px] h-[22px]" strokeWidth={1.5} />
-                    </button>
+                    <div className="hidden md:block">
+                        {showDesktopSearch ? (
+                            <div className="relative flex items-center gap-3">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search products..."
+                                    className="w-64 bg-surface-container-low border border-outline-variant rounded-xl px-4 py-2 text-[.8rem] text-primary placeholder:text-primary/40 outline-none focus:ring-1 focus:ring-secondary/50 focus:border-secondary transition-all"
+                                />
+                                <button
+                                    onClick={() => {
+                                        setShowDesktopSearch(false);
+                                        setSearchQuery("");
+                                        setSearchResults([]);
+                                    }}
+                                    className="text-primary hover:opacity-80 transition-opacity duration-300 p-1"
+                                >
+                                    <X className="w-[22px] h-[22px]" strokeWidth={1.5} />
+                                </button>
+
+                                {/* Dropdown with solid white background */}
+                                {searchQuery.length >= 2 && (
+                                    <div className="absolute top-full right-0 mt-3 w-80 bg-white sm:bg-white border border-outline-variant p-3 rounded-2xl shadow-xl z-50 max-h-72 overflow-y-auto flex flex-col gap-2">
+                                        {isSearching ? (
+                                            <div className="flex items-center justify-center gap-2 py-6 text-primary/50">
+                                                <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-ping"></span>
+                                                <span className="text-xs font-body italic">Searching...</span>
+                                            </div>
+                                        ) : searchResults.length > 0 ? (
+                                            searchResults.map(product => {
+                                                const imageUrl = product.images?.[0]
+                                                    ? assetUrl(product.images[0].image_list)
+                                                    : '';
+                                                return (
+                                                    <a
+                                                        key={product.id}
+                                                        href={`/collections/${product.id}`}
+                                                        onClick={() => setShowDesktopSearch(false)}
+                                                        className="group flex gap-3 p-2 rounded-xl hover:bg-surface-container-low border border-transparent hover:border-outline-variant transition-all duration-300 text-left"
+                                                    >
+                                                        <div className="w-12 h-16 bg-surface rounded-lg overflow-hidden border border-outline-variant flex-shrink-0">
+                                                            {imageUrl && (
+                                                                <img src={imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col justify-between py-0.5">
+                                                            <div>
+                                                                <h4 className="font-headline text-sm text-primary group-hover:text-secondary transition-colors line-clamp-1">{product.name}</h4>
+                                                                <span className="text-[9px] font-label text-secondary tracking-wider uppercase">The Heritage Collection</span>
+                                                            </div>
+                                                            <span className="text-xs font-label font-semibold text-primary">
+                                                                Rp {product.price.toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                    </a>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-xs text-primary/50 text-center py-6 italic">No products found</p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => {
+                                    setShowDesktopSearch(true);
+                                    setSearchQuery("");
+                                    setSearchResults([]);
+                                }}
+                                className="hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary inline-flex mt-1"
+                            >
+                                <Search className="w-[22px] h-[22px]" strokeWidth={1.5} />
+                            </button>
+                        )}
+                    </div>
                     <a href={route('cart.index')} className="relative hover:opacity-80 transition-opacity duration-300 active:scale-95 text-primary">
                         <ShoppingBag className="w-[22px] h-[22px]" strokeWidth={1.5} />
                         {cartCount > 0 && (
@@ -115,16 +218,59 @@ export default function Header() {
                 {/* Inner content – push below navbar height */}
                 <div className="flex flex-col h-full pt-24 px-8 pb-10">
                     {/* Search bar */}
-                    <div className="mb-8">
+                    <div className="mb-8 relative">
                         <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
                             style={{ backgroundColor: "var(--color-surface-low, #f2f2eb)" }}>
                             <Search className="w-5 h-5 text-primary/50" strokeWidth={1.5} />
                             <input
                                 type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search products…"
                                 className="bg-transparent w-full text-sm text-primary placeholder:text-primary/40 outline-none font-[var(--font-functional)]"
                             />
                         </div>
+                        {searchQuery.length >= 2 && (
+                            <div className="absolute top-full left-0 w-full bg-surface rounded-2xl shadow-xl border border-outline-variant p-3 mt-2 z-50 max-h-80 overflow-y-auto flex flex-col gap-2">
+                                {isSearching ? (
+                                    <div className="flex items-center justify-center gap-2 py-6 text-primary/50">
+                                        <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-ping"></span>
+                                        <span className="text-xs font-body italic">Searching...</span>
+                                    </div>
+                                ) : searchResults.length > 0 ? (
+                                    searchResults.map(product => {
+                                        const imageUrl = product.images?.[0]
+                                            ? assetUrl(product.images[0].image_list)
+                                            : '';
+                                        return (
+                                            <a
+                                                key={product.id}
+                                                href={`/collections/${product.id}`}
+                                                onClick={() => setMobileOpen(false)}
+                                                className="group flex gap-3 p-2 rounded-xl hover:bg-surface-container-low border border-transparent hover:border-outline-variant transition-all duration-300"
+                                            >
+                                                <div className="w-12 h-16 bg-surface rounded-lg overflow-hidden border border-outline-variant flex-shrink-0">
+                                                    {imageUrl && (
+                                                        <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col justify-between py-0.5">
+                                                    <div>
+                                                        <h4 className="font-headline text-sm text-primary group-hover:text-secondary transition-colors line-clamp-1">{product.name}</h4>
+                                                        <span className="text-[9px] font-label text-secondary tracking-wider uppercase">The Heritage Collection</span>
+                                                    </div>
+                                                    <span className="text-xs font-label font-semibold text-primary">
+                                                        Rp {product.price.toLocaleString('id-ID')}
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        );
+                                    })
+                                ) : (
+                                    <p className="text-xs text-primary/50 text-center py-6 italic">No products found</p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Nav links */}

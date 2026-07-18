@@ -27,6 +27,21 @@ class ProductController extends Controller
         ]);
     }
 
+    public function search(Request $request)
+    {
+        $query = $request->get('q');
+        if (empty($query)) {
+            return response()->json([]);
+        }
+
+        $products = Product::where('name', 'like', "%{$query}%")
+            ->with(['images'])
+            ->limit(5)
+            ->get();
+
+        return response()->json($products);
+    }
+
     /**
      * Store a newly created resource in storage.
      */
