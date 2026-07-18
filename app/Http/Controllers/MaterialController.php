@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Material;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class MaterialController extends Controller
@@ -27,12 +28,17 @@ class MaterialController extends Controller
             'created_at' => 'nullable|date',
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        // Use the picked date but keep the real current time; fall back to now() if blank.
+        $timestamp = !empty($validated['created_at'])
+            ? Carbon::parse($validated['created_at'])->setTimeFrom(now())
+            : now();
+
+        DB::transaction(function () use ($validated, $request, $timestamp) {
             $material = Material::create([
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
                 'current_stock' => $validated['initial_stock'],
-                'created_at' => $validated['created_at'] ?? now(),
+                'created_at' => $timestamp,
             ]);
 
             if ($validated['initial_stock'] > 0) {
@@ -42,7 +48,7 @@ class MaterialController extends Controller
                     'type' => 'in',
                     'quantity' => $validated['initial_stock'],
                     'description' => $validated['description'] ?? 'Initial stock setup',
-                    'created_at' => $validated['created_at'] ?? now(),
+                    'created_at' => $timestamp,
                 ]);
             }
         });
@@ -65,12 +71,17 @@ class MaterialController extends Controller
             'created_at' => 'nullable|date',
         ]);
 
-          DB::transaction(function () use ($validated, $request, $material, $oldStock, $oldName, $oldUnit) {
+        // Use the picked date but keep the real current time; fall back to now() if blank.
+        $timestamp = !empty($validated['created_at'])
+            ? Carbon::parse($validated['created_at'])->setTimeFrom(now())
+            : now();
+
+          DB::transaction(function () use ($validated, $request, $material, $oldStock, $oldName, $oldUnit, $timestamp) {
             $material->update([
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
                 'current_stock' => $validated['initial_stock'],
-                'created_at' => $validated['created_at'] ?? $material->created_at,
+                'created_at' => !empty($validated['created_at']) ? $timestamp : $material->created_at,
             ]);
 
             if ($validated['initial_stock'] > $oldStock) {
@@ -80,7 +91,7 @@ class MaterialController extends Controller
                     'type' => 'in',
                    'quantity' => $validated['initial_stock'] - $oldStock,
                     'description' => $validated['description'] ?? 'Adding Stock',
-                    'created_at' => $validated['created_at'] ?? now(),
+                    'created_at' => $timestamp,
                 ]);
             } else if($validated['initial_stock'] < $oldStock){
                 $material->logs()->create([
@@ -89,7 +100,7 @@ class MaterialController extends Controller
                     'type' => 'out',
                     'quantity' => $oldStock - $validated['initial_stock'],
                     'description' => $validated['description'] ?? 'Removing Stock',
-                    'created_at' => $validated['created_at'] ?? now(),
+                    'created_at' => $timestamp,
                 ]);
             } 
             if($validated['name'] !== $oldName || $validated['unit'] !== $oldUnit){
@@ -99,7 +110,7 @@ class MaterialController extends Controller
                     'type' => 'adjustment',
                     'quantity' => $validated['initial_stock'],
                     'description' => 'edited name or unit',
-                    'created_at' => $validated['created_at'] ?? now(),
+                    'created_at' => $timestamp,
                 ]);
             }
         });
@@ -128,6 +139,11 @@ class MaterialController extends Controller
             'description' => 'nullable|string|max:255',
             'created_at' => 'nullable|date',
         ]);
+
+        $timestamp = !empty($validated['created_at'])
+            ? Carbon::parse($validated['created_at'])->setTimeFrom(now())
+            : now();
+
         $updateStock = $material->current_stock + $validated['initial_stock'];
         $material->update([
             'current_stock' => $updateStock,
@@ -136,10 +152,10 @@ class MaterialController extends Controller
         $material->logs()->create([
             'user_id' => $request->user()->id ?? null,
             'type' => 'in',
-              'material_name'=> $material->name,
+            'material_name'=> $material->name,
             'quantity' => $validated['initial_stock'],
             'description' => $validated['description'] ?? 'Added quantity',
-            'created_at' => $validated['created_at'] ?? now(),
+            'created_at' => $timestamp,
         ]);
         
         return redirect()->back()->with('success', 'Quantity added successfully.');

@@ -35,6 +35,7 @@ interface Shipment {
             postal_code: string;
             subdistrict: string;
             ward: string;
+            phone?: string;
         };
         user: { name: string; email: string };
         items: {
@@ -66,7 +67,7 @@ export default function ShipmentStatus({ shipment }: Props) {
         if (!trackingDetails && shipment.tracking_number && shipment.courier) {
             setTrackingLoading(true);
             setTrackingError(null);
-            getTrackingData(shipment.tracking_number, shipment.courier)
+            getTrackingData(shipment.tracking_number, shipment.courier, shipment.order?.shippind_address?.phone)
                 .then(data => {
                     if (data.status === 200 && data.data) {
                         const formattedData: TrackingDetails = {

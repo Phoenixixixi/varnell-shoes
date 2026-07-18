@@ -23,7 +23,7 @@ interface MaterialLog {
     type: 'in' | 'out' | 'adjustment';
     quantity: number;
     description: string;
-    created_at: string;
+    updated_at: string;
     material: {
         name: string;
     };
@@ -122,7 +122,7 @@ export default function MaterialLogs({ logs }: Props) {
                                                     {log.description || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-muted-foreground text-xs">
-                                                    {format(new Date(log.created_at.endsWith('Z') ? log.created_at : log.created_at + 'Z'), 'PPP p')}
+                                                    {format(new Date(log.updated_at.endsWith('Z') ? log.updated_at : log.updated_at + 'Z'), 'PPP p')}
                                                 </TableCell>
                                             </TableRow>
                                         ))

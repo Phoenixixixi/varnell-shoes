@@ -274,9 +274,8 @@ export default function ShipmentPage({ shipments, stats, filters }: Props) {
         });
     };
 
-    const showTrackingExternal = async (tracking_number: string, courier: string) => {
+    const showTrackingExternal = async (tracking_number: string, courier: string, phone?: string) => {
         setIsShow(true);
-        const apiKey = import.meta.env.VITE_BINDER_BYTE_API_KEY;
 
         if (!tracking_number) {
             setErrorTracking('No Tracking Number');
@@ -289,7 +288,7 @@ export default function ShipmentPage({ shipments, stats, filters }: Props) {
         }
 
         try {
-            const response = await getTrackingData(tracking_number, courier);
+            const response = await getTrackingData(tracking_number, courier, phone);
             setTrackingData(response);
 
         } catch (error) {
@@ -475,10 +474,11 @@ export default function ShipmentPage({ shipments, stats, filters }: Props) {
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            // onClick={() => showTrackingExternal(shipment.tracking_number, shipment.courier)}
-                                                            onClick={() =>
-                                                                showTrackingExternal(shipment.tracking_number, shipment.courier?.toLocaleLowerCase())
-                                                            }
+                                                            onClick={() => {
+                                                                const addr = shipment.order?.shippind_address;
+                                                                const phone = typeof addr === 'object' ? addr?.phone : undefined;
+                                                                showTrackingExternal(shipment.tracking_number, shipment.courier?.toLocaleLowerCase(), phone);
+                                                            }}
                                                             className="hover:bg-secondary h-8 w-8 transition-colors hover:text-white"
                                                         >
                                                             <Eye className="h-4 w-4" />
