@@ -69,25 +69,27 @@ export default function ShipmentStatus({ shipment }: Props) {
             setTrackingError(null);
             getTrackingData(shipment.tracking_number, shipment.courier, shipment.order?.shippind_address?.phone)
                 .then(data => {
-                    if (data.status === 200 && data.data) {
-                        const formattedData: TrackingDetails = {
-                            status: data.data.summary.status,
-                            position: data.data.summary.awb,
-                            last_updated: data.data.summary.date,
-                            receiver: data.data.summary.receiver || data.data.detail?.receiver || '',
-                            history: data.data.history.map((h: any) => ({
-                                time: h.date.replace(' ', 'T'),
-                                location: h.location || '',
-                                description: h.desc
-                            }))
-                        };
-                        setTrackingDetails(formattedData);
-                    } else {
-                        setTrackingError('Failed to fetch tracking data.');
+                    const d = data?.data;
+                    if (!d) {
+                        setTrackingError('Tracking data not available yet.');
+                        return;
                     }
+                    const formattedData: TrackingDetails = {
+                        status: d.summary?.status ?? 'Unknown',
+                        position: d.summary?.awb ?? '',
+                        last_updated: d.summary?.date ?? '',
+                        receiver: d.summary?.receiver || d.detail?.receiver || '',
+                        history: (d.history ?? []).map((h: any) => ({
+                            time: (h.date ?? '').replace(' ', 'T'),
+                            location: h.location || '',
+                            description: h.desc ?? '',
+                        })),
+                    };
+                    setTrackingDetails(formattedData);
                 })
                 .catch(err => {
-                    setTrackingError(err.message || 'Error tracking package');
+                    // Don't crash the page — just show a soft message
+                    setTrackingError(err.message || 'Tracking data not available yet.');
                 })
                 .finally(() => {
                     setTrackingLoading(false);
