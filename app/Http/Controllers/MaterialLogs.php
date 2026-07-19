@@ -16,7 +16,7 @@ class MaterialLogs extends Controller
     public function index(Request $request)
     {
         $logs = MaterialLog::with(['material', 'user'])
-            ->orderBy('updated_at', 'asc')
+            ->orderBy('updated_at', 'desc')
             ->paginate(15)
             ->withQueryString();
 
