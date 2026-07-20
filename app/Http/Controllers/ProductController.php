@@ -159,12 +159,16 @@ class ProductController extends Controller
             'deleted_images.*' => 'integer|exists:product_images,id',
             'recipe_id' => 'nullable|exists:shoe_recipes,id',
             'created_at' => 'nullable|date',
+            'log_date' => 'nullable|date',
         ]);
+
+        // Tanggal untuk log perubahan stok — default hari ini jika tidak diisi
+        $logTimestamp = !empty($validated['log_date']) ? $validated['log_date'] : now();
 
         $oldStock = $product->stock;
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
 
-        return DB::transaction(function () use ($validated, $totalStock, $oldStock, $product, $request) {
+        return DB::transaction(function () use ($validated, $totalStock, $oldStock, $product, $request, $logTimestamp) {
             // Handle Material Deduction/Return
             $oldRecipeId = $product->recipe_id;
             $newRecipeId = $validated['recipe_id'];
@@ -184,7 +188,7 @@ class ProductController extends Controller
                                 'type' => 'in',
                                 'quantity' => $totalReturn,
                                 'description' => "Stock returned due to recipe change: {$product->name} (Quantity: {$oldStock})",
-                                'created_at' => $validated['created_at'] ?? now(),
+                                'created_at' => $logTimestamp,
                             ]);
                         }
                     }
@@ -215,7 +219,7 @@ class ProductController extends Controller
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Used for production (Recipe changed): {$validated['name']} (Quantity: {$totalStock})",
-                            'created_at' => $validated['created_at'] ?? now(),
+                            'created_at' => $logTimestamp,
                         ]);
                     }
                 }
@@ -246,7 +250,7 @@ class ProductController extends Controller
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Production stock increase: {$validated['name']} (+{$diff})",
-                            'created_at' => $validated['created_at'] ?? now(),
+                            'created_at' => $logTimestamp,
                         ]);
                     }
                 } else {
@@ -263,7 +267,7 @@ class ProductController extends Controller
                             'type' => 'in',
                             'quantity' => $totalReturn,
                             'description' => "Stock returned due to stock decrease: {$validated['name']} (-{$diff})",
-                            'created_at' => $validated['created_at'] ?? now(),
+                            'created_at' => $logTimestamp,
                         ]);
                     }
                 }
@@ -295,7 +299,7 @@ class ProductController extends Controller
                     'user_id' => auth()->id(),
                     'type' => $type,
                     'quantity' => $diff,
-                    'created_at' => $validated['created_at'] ?? now(),
+                    'created_at' => $logTimestamp,
                 ]);
             }
 

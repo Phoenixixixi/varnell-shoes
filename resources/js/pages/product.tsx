@@ -46,6 +46,7 @@ export default function Product({ products, recipes }: ProductProp) {
         deleted_images: [] as number[],
         recipe_id: '',
         created_at: formatDateForInput(),
+        log_date: formatDateForInput(),
     });
 
     const recipeOptions = recipes.map(r => ({ text: r.name, value: r.id.toString() }));
@@ -83,6 +84,7 @@ export default function Product({ products, recipes }: ProductProp) {
             deleted_images: [],
             recipe_id: product.recipe_id?.toString() || '',
             created_at: formatDateForInput(product.created_at),
+            log_date: formatDateForInput(),
         });
         clearErrors();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -149,7 +151,7 @@ export default function Product({ products, recipes }: ProductProp) {
                                 <Field>
                                     <FieldLabel htmlFor="recipe_id">Product Model (from Recipe)</FieldLabel>
                                     <FieldDescription>Select the recipe model for this product.</FieldDescription>
-                                    <SelectButton 
+                                    <SelectButton
                                         buttonItems={recipeOptions}
                                         placeholder="Select a recipe"
                                         value={data.recipe_id}
@@ -194,6 +196,21 @@ export default function Product({ products, recipes }: ProductProp) {
                                     />
                                     {errors.created_at && <p className="mt-1 text-xs text-red-500">{errors.created_at}</p>}
                                 </Field>
+
+                                {isEditing && (
+                                    <Field>
+                                        <FieldLabel htmlFor="log_date">Stock Update Date</FieldLabel>
+                                        <FieldDescription>Set the update date product (default: Today).</FieldDescription>
+                                        <Input
+                                            id="log_date"
+                                            type="date"
+                                            value={data.log_date}
+                                            onChange={(e) => setData('log_date', e.target.value)}
+                                            className={(errors as any).log_date ? 'border-red-500' : ''}
+                                        />
+                                        {(errors as any).log_date && <p className="mt-1 text-xs text-red-500">{(errors as any).log_date}</p>}
+                                    </Field>
+                                )}
 
                                 <Field>
                                     <FieldLabel htmlFor="description">Description</FieldLabel>
