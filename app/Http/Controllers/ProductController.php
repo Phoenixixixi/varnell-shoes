@@ -185,14 +185,15 @@ class ProductController extends Controller
                             $totalReturn = $item->quantity_required * $oldStock;
                             $item->material->increment('current_stock', $totalReturn);
                             
-                            $item->material->logs()->create([
+                            MaterialLog::withoutTimestamps(fn () => $item->material->logs()->create([
                                 'user_id' => auth()->id(),
                                 'material_name' => $item->material->name,
                                 'type' => 'in',
                                 'quantity' => $totalReturn,
                                 'description' => "Stock returned due to recipe change: {$product->name} (Quantity: {$oldStock})",
                                 'created_at' => $logTimestamp,
-                            ]);
+                                'updated_at' => $logTimestamp,
+                            ]));
                         }
                     }
                 }
@@ -216,14 +217,15 @@ class ProductController extends Controller
                         $totalRequired = $item->quantity_required * $totalStock;
                         $item->material->decrement('current_stock', $totalRequired);
                         
-                        $item->material->logs()->create([
+                        MaterialLog::withoutTimestamps(fn () => $item->material->logs()->create([
                             'user_id' => auth()->id(),
                             'material_name' => $item->material->name,
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Used for production (Recipe changed): {$validated['name']} (Quantity: {$totalStock})",
                             'created_at' => $logTimestamp,
-                        ]);
+                            'updated_at' => $logTimestamp,
+                        ]));
                     }
                 }
             } elseif ($newRecipeId && $totalStock != $oldStock) {
@@ -247,14 +249,15 @@ class ProductController extends Controller
                         $totalRequired = $item->quantity_required * $diff;
                         $item->material->decrement('current_stock', $totalRequired);
                         
-                        $item->material->logs()->create([
+                        MaterialLog::withoutTimestamps(fn () => $item->material->logs()->create([
                             'user_id' => auth()->id(),
                             'material_name' => $item->material->name,
                             'type' => 'out',
                             'quantity' => $totalRequired,
                             'description' => "Production stock increase: {$validated['name']} (+{$diff})",
                             'created_at' => $logTimestamp,
-                        ]);
+                            'updated_at' => $logTimestamp,
+                        ]));
                     }
                 } else {
                     $diff = $oldStock - $totalStock;
@@ -264,14 +267,15 @@ class ProductController extends Controller
                         $totalReturn = $item->quantity_required * $diff;
                         $item->material->increment('current_stock', $totalReturn);
                         
-                        $item->material->logs()->create([
+                        MaterialLog::withoutTimestamps(fn () => $item->material->logs()->create([
                             'user_id' => auth()->id(),
                             'material_name' => $item->material->name,
                             'type' => 'in',
                             'quantity' => $totalReturn,
                             'description' => "Stock returned due to stock decrease: {$validated['name']} (-{$diff})",
                             'created_at' => $logTimestamp,
-                        ]);
+                            'updated_at' => $logTimestamp,
+                        ]));
                     }
                 }
             }
