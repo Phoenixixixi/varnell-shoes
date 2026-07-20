@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use Carbon\Carbon;
 
 class ProductController extends Controller
 {
@@ -162,8 +163,10 @@ class ProductController extends Controller
             'log_date' => 'nullable|date',
         ]);
 
-        // Tanggal untuk log perubahan stok — default hari ini jika tidak diisi
-        $logTimestamp = !empty($validated['log_date']) ? $validated['log_date'] : now();
+        // Tanggal untuk log perubahan stok — pakai tanggal log_date dengan jam saat ini
+        $logTimestamp = !empty($validated['log_date'])
+            ? Carbon::parse($validated['log_date'])->setTimeFrom(now())
+            : now();
 
         $oldStock = $product->stock;
         $totalStock = array_sum(array_column($validated['sizes'], 'stock'));
