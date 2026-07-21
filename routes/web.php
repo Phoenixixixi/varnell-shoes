@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\CekResiController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\Consument;
@@ -23,6 +24,7 @@ Route::get('/', [UserController::class, 'index'])->name('landing-page');
 
 Route::get('/collections', [CollectionController::class, 'index'])->name('collections');
 Route::get('/collections/{collection}', [CollectionController::class, 'show'])->name('collections.show');
+Route::get('/cek-resi', [CekResiController::class, 'track']);
 
 Route::get('/consument-care', [UserController::class, 'consumentCare'])->name('consument-care');
 Route::post('/consument-care', [UserController::class, 'storeConsumentCare'])->name('consument-care.store');

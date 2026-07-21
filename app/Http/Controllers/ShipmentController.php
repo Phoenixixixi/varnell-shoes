@@ -20,7 +20,7 @@ class ShipmentController extends Controller
     public function userIndex(Request $request)
     {
         $user = auth()->user();
-        
+
         $query = Shipment::whereHas('order', function ($query) use ($user) {
             $query->where('user_id', $user->id);
         })->with(['order.items.product.images', 'order.payment']);
@@ -52,7 +52,7 @@ class ShipmentController extends Controller
         }
 
         if ($request->filled('courier')) {
-            $query->where('courier', 'like', '%' . $request->courier . '%');
+            $query->where('courier', 'like', '%'.$request->courier.'%');
         }
 
         $shipments = $query->latest()->paginate(10)->withQueryString();
