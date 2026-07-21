@@ -74,4 +74,38 @@ class ProductLogController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+    public function update(Request $request, $id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'log_date' => 'required|date',
+        ]);
+
+        $log = ProductLogs::findOrFail($id);
+        
+        ProductLogs::withoutTimestamps(function () use ($log, $validated) {
+            $log->update([
+                'updated_at' => \Carbon\Carbon::parse($validated['log_date'])->setTimeFrom(now()),
+                'created_at' => \Carbon\Carbon::parse($validated['log_date'])->setTimeFrom(now()),
+            ]);
+        });
+
+        return back()->with('success', 'Log date updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $log = ProductLogs::findOrFail($id);
+        $log->delete();
+
+        return back()->with('success', 'Log deleted successfully.');
+    }
 }

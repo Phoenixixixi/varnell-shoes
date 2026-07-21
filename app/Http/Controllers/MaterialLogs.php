@@ -153,4 +153,36 @@ class MaterialLogs extends Controller
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
+    public function update(Request $request, $id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'log_date' => 'required|date',
+        ]);
+
+        $log = MaterialLog::findOrFail($id);
+        
+        MaterialLog::withoutTimestamps(function () use ($log, $validated) {
+            $log->update([
+                'updated_at' => \Carbon\Carbon::parse($validated['log_date'])->setTimeFrom(now())
+            ]);
+        });
+
+        return back()->with('success', 'Log date updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        if (auth()->user()->role !== 'superadmin') {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $log = MaterialLog::findOrFail($id);
+        $log->delete();
+
+        return back()->with('success', 'Log deleted successfully.');
+    }
 }

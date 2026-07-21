@@ -1,14 +1,15 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Edit, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Material Logs', href: '/admin/material-logs' },
@@ -55,9 +56,40 @@ function toLocal(utcString: string) {
 }
 
 export default function MaterialLogs({ logs }: Props) {
+    const { auth } = usePage<any>().props;
+    const isSuperadmin = auth?.user?.role === 'superadmin';
+
     const startRef = useRef<HTMLInputElement>(null);
     const endRef   = useRef<HTMLInputElement>(null);
     const [exporting, setExporting] = useState(false);
+
+    // Superadmin actions state
+    const [editLog, setEditLog] = useState<MaterialLog | null>(null);
+    const [deleteLog, setDeleteLog] = useState<MaterialLog | null>(null);
+
+    const { data: editData, setData: setEditData, put, processing: editProcessing } = useForm({
+        log_date: ''
+    });
+
+    const openEdit = (log: MaterialLog) => {
+        setEditLog(log);
+        setEditData('log_date', format(new Date(log.updated_at), 'yyyy-MM-dd'));
+    };
+
+    const handleEditSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editLog) return;
+        put(route('admin.material.logs.update', editLog.id), {
+            onSuccess: () => setEditLog(null),
+        });
+    };
+
+    const handleDelete = () => {
+        if (!deleteLog) return;
+        router.delete(route('admin.material.logs.destroy', deleteLog.id), {
+            onSuccess: () => setDeleteLog(null),
+        });
+    };
 
     const handleExport = (e: React.FormEvent) => {
         e.preventDefault();
@@ -139,6 +171,7 @@ export default function MaterialLogs({ logs }: Props) {
                                         <TableHead>Quantity</TableHead>
                                         <TableHead>Notes</TableHead>
                                         <TableHead>Date &amp; Time</TableHead>
+                                        {isSuperadmin && <TableHead className="text-right">Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -169,6 +202,18 @@ export default function MaterialLogs({ logs }: Props) {
                                                 <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                                                     {toLocal(log.updated_at)}
                                                 </TableCell>
+                                                {isSuperadmin && (
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(log)}>
+                                                                <Edit className="h-4 w-4 text-emerald-500" />
+                                                            </Button>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDeleteLog(log)}>
+                                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                )}
                                             </TableRow>
                                         ))
                                     ) : (
@@ -220,6 +265,46 @@ export default function MaterialLogs({ logs }: Props) {
                 </Card>
 
             </div>
+
+            {/* Edit Date Dialog */}
+            <Dialog open={!!editLog} onOpenChange={(open) => !open && setEditLog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Log Date</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="space-y-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium">New Date</label>
+                            <Input
+                                type="date"
+                                required
+                                value={editData.log_date}
+                                onChange={(e) => setEditData('log_date', e.target.value)}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditLog(null)}>Cancel</Button>
+                            <Button type="submit" disabled={editProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Changes</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteLog} onOpenChange={(open) => !open && setDeleteLog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Log</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this log entry? This action cannot be undone and will not revert the material stock.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteLog(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDelete}>Delete Log</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

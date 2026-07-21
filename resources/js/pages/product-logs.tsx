@@ -1,12 +1,15 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, usePage, useForm, router } from '@inertiajs/react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Edit, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -36,6 +39,37 @@ interface Props {
 }
 
 export default function ProductLogs({ logs }: Props) {
+    const { auth } = usePage<any>().props;
+    const isSuperadmin = auth?.user?.role === 'superadmin';
+
+    // Superadmin actions state
+    const [editLog, setEditLog] = useState<Log | null>(null);
+    const [deleteLog, setDeleteLog] = useState<Log | null>(null);
+
+    const { data: editData, setData: setEditData, put, processing: editProcessing } = useForm({
+        log_date: ''
+    });
+
+    const openEdit = (log: Log) => {
+        setEditLog(log);
+        setEditData('log_date', format(new Date(log.created_at), 'yyyy-MM-dd'));
+    };
+
+    const handleEditSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editLog) return;
+        put(route('admin.product.logs.update', editLog.id), {
+            onSuccess: () => setEditLog(null),
+        });
+    };
+
+    const handleDelete = () => {
+        if (!deleteLog) return;
+        router.delete(route('admin.product.logs.destroy', deleteLog.id), {
+            onSuccess: () => setDeleteLog(null),
+        });
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Product Stock Logs" />
@@ -86,6 +120,7 @@ export default function ProductLogs({ logs }: Props) {
                                         <TableHead>Quantity</TableHead>
                                         <TableHead>Notes</TableHead>
                                         <TableHead>Date & Time</TableHead>
+                                        {isSuperadmin && <TableHead className="text-right">Actions</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -108,11 +143,23 @@ export default function ProductLogs({ logs }: Props) {
                                                 <TableCell className="text-muted-foreground text-xs">
                                                     {format(new Date(log.created_at), 'PPP p')}
                                                 </TableCell>
+                                                {isSuperadmin && (
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(log)}>
+                                                                <Edit className="h-4 w-4 text-emerald-500" />
+                                                            </Button>
+                                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setDeleteLog(log)}>
+                                                                <Trash2 className="h-4 w-4 text-red-500" />
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                )}
                                             </TableRow>
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="text-center text-muted-foreground">
+                                            <TableCell colSpan={isSuperadmin ? 7 : 6} className="text-center text-muted-foreground">
                                                 No logs found.
                                             </TableCell>
                                         </TableRow>
@@ -123,6 +170,46 @@ export default function ProductLogs({ logs }: Props) {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Edit Date Dialog */}
+            <Dialog open={!!editLog} onOpenChange={(open) => !open && setEditLog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Edit Log Date</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleEditSubmit} className="space-y-4">
+                        <div>
+                            <label className="mb-1 block text-sm font-medium">New Date</label>
+                            <Input
+                                type="date"
+                                required
+                                value={editData.log_date}
+                                onChange={(e) => setEditData('log_date', e.target.value)}
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setEditLog(null)}>Cancel</Button>
+                            <Button type="submit" disabled={editProcessing} className="bg-emerald-600 hover:bg-emerald-700 text-white">Save Changes</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteLog} onOpenChange={(open) => !open && setDeleteLog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete Log</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this product log entry? This action cannot be undone and will not revert the product stock.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteLog(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleDelete}>Delete Log</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

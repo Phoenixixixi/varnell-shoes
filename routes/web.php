@@ -72,6 +72,8 @@ Route::middleware(['admin'])->group(function () {
         Route::resource('products', ProductController::class)->names('product');
         Route::get('products-logs/export', [ProductLogController::class, 'export'])->name('product.logs.export');
         Route::get('products-logs', [ProductLogController::class, 'index'])->name('product.logs');
+        Route::put('products-logs/{id}', [ProductLogController::class, 'update'])->name('product.logs.update');
+        Route::delete('products-logs/{id}', [ProductLogController::class, 'destroy'])->name('product.logs.destroy');
 
         // Materials and Recipes
         Route::resource('materials', MaterialController::class)->names('material');
@@ -82,6 +84,8 @@ Route::middleware(['admin'])->group(function () {
         Route::delete('recipes/items/{item}', [RecipeController::class, 'removeItem'])->name('recipes.remove-item');
         Route::get('material-logs/export', [MaterialLogs::class, 'export'])->name('material.logs.export');
         Route::get('material-logs', [MaterialLogs::class, 'index'])->name('material.logs');
+        Route::put('material-logs/{id}', [MaterialLogs::class, 'update'])->name('material.logs.update');
+        Route::delete('material-logs/{id}', [MaterialLogs::class, 'destroy'])->name('material.logs.destroy');
 
         Route::get('shipment', [ShipmentController::class, 'index'])->name('shipment');
         Route::patch('shipment/{id}', [ShipmentController::class, 'update'])->name('shipment.update');
