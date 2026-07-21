@@ -22,16 +22,15 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface MonthlyRow {
-    yearMonth: string; // 'YYYY-MM'
-    month: string;     // 'Jan 2025'
+interface DailyRow {
+    date: string; // 'YYYY-MM-DD'
     stockIn: number;
     stockOut: number;
 }
 
 interface PerMaterialLog {
     materialId: number;
-    yearMonth: string;
+    date: string; // 'YYYY-MM-DD'
     stockIn: number;
     stockOut: number;
 }
@@ -48,7 +47,7 @@ interface MaterialDashboardProps {
     stockIn7d: number;
     stockOut7d: number;
     lowStockItems: number;
-    monthlyTransactions: MonthlyRow[];
+    dailyTransactions: DailyRow[];
     sevenDayFlow: { stockIn: number; stockOut: number };
     materials: MaterialItem[];
     perMaterialLogs: PerMaterialLog[];
@@ -134,55 +133,120 @@ export default function MaterialDashboard({
     stockIn7d,
     stockOut7d,
     lowStockItems,
-    monthlyTransactions,
+    dailyTransactions,
     materials,
     perMaterialLogs,
 }: MaterialDashboardProps) {
 
     // ── Filter state ──────────────────────────────────────────────────────────
-    const [selectedMaterial, setSelectedMaterial] = useState<string>('all');   // 'all' | material id string
-    const [selectedMonths, setSelectedMonths] = useState<string>('6');          // '3' | '6' | '12'
+    const [selectedMaterial, setSelectedMaterial] = useState<string>('all');
+    const [selectedPeriod, setSelectedPeriod] = useState<string>('6_months');
+    const [selectedSpecificMonth, setSelectedSpecificMonth] = useState<string>('');
+    const [selectedSpecificWeek, setSelectedSpecificWeek] = useState<string>('');
 
-    // All unique yearMonths present in data, sorted ascending
-    const allMonths = useMemo(
-        () => monthlyTransactions.map((r) => r.yearMonth).sort(),
-        [monthlyTransactions],
-    );
+    const allDates = useMemo(() => dailyTransactions.map((r) => r.date).sort(), [dailyTransactions]);
+
+    const availableMonths = useMemo(() => {
+        const months = new Set<string>();
+        allDates.forEach(d => months.add(d.substring(0, 7)));
+        return Array.from(months).sort().reverse();
+    }, [allDates]);
+
+    const availableWeeks = useMemo(() => {
+        const weeks = new Set<string>();
+        allDates.forEach(d => {
+            const ym = d.substring(0, 7);
+            const day = parseInt(d.substring(8, 10), 10);
+            const w = Math.ceil(day / 7);
+            weeks.add(`${ym}-${w}`);
+        });
+        return Array.from(weeks).sort().reverse();
+    }, [allDates]);
+
+    const currentSpecificMonth = selectedSpecificMonth || availableMonths[0] || '';
+    const currentSpecificWeek = selectedSpecificWeek || availableWeeks[0] || '';
 
     // ── Derived chart data ────────────────────────────────────────────────────
     const chartData = useMemo(() => {
-        const monthCount = parseInt(selectedMonths, 10);
-
-        // Slice to last N months from the full 12-month dataset
-        const slicedMonths = allMonths.slice(-monthCount);
+        let sourceData: DailyRow[] = [];
 
         if (selectedMaterial === 'all') {
-            // Use the pre-aggregated global monthly rows, just slice by month count
-            return monthlyTransactions
-                .filter((r) => slicedMonths.includes(r.yearMonth))
-                .map((r) => ({ month: r.month, yearMonth: r.yearMonth, stockIn: r.stockIn, stockOut: r.stockOut }));
+            sourceData = dailyTransactions;
+        } else {
+            const matId = parseInt(selectedMaterial, 10);
+            const map = new Map<string, {stockIn: number, stockOut: number}>();
+            allDates.forEach(d => map.set(d, {stockIn: 0, stockOut: 0}));
+            perMaterialLogs.forEach(l => {
+                if (l.materialId === matId && map.has(l.date)) {
+                    const m = map.get(l.date)!;
+                    m.stockIn += l.stockIn;
+                    m.stockOut += l.stockOut;
+                }
+            });
+            sourceData = allDates.map(d => ({ date: d, ...map.get(d)! }));
         }
 
-        // Filter per-material logs for the selected material & months
-        const matId = parseInt(selectedMaterial, 10);
-        const buckets: Record<string, { stockIn: number; stockOut: number }> = {};
+        if (selectedPeriod === '1_week') {
+            if (!currentSpecificWeek) return [];
+            const [sy, sm, sw] = currentSpecificWeek.split('-');
+            const filtered = sourceData.filter(d => {
+                const ym = d.date.substring(0, 7);
+                const w = Math.ceil(parseInt(d.date.substring(8, 10), 10) / 7);
+                return ym === `${sy}-${sm}` && w === parseInt(sw, 10);
+            });
+            
+            return filtered.map(d => {
+                const label = new Date(d.date).toLocaleString('default', { weekday: 'short', day: 'numeric' });
+                return { label, ...d };
+            });
+        }
 
-        // Ensure every sliced month exists
-        slicedMonths.forEach((ym) => { buckets[ym] = { stockIn: 0, stockOut: 0 }; });
-
-        perMaterialLogs
-            .filter((l) => l.materialId === matId && slicedMonths.includes(l.yearMonth))
-            .forEach((l) => {
-                buckets[l.yearMonth].stockIn  += l.stockIn;
-                buckets[l.yearMonth].stockOut += l.stockOut;
+        if (selectedPeriod === '1_month') {
+            if (!currentSpecificMonth) return [];
+            const filtered = sourceData.filter(d => d.date.substring(0, 7) === currentSpecificMonth);
+            
+            const weekBuckets = new Map<number, {stockIn: number, stockOut: number}>();
+            [1,2,3,4,5].forEach(w => weekBuckets.set(w, {stockIn:0, stockOut:0}));
+            
+            filtered.forEach(d => {
+                const w = Math.ceil(parseInt(d.date.substring(8, 10), 10) / 7);
+                const bucket = weekBuckets.get(w)!;
+                bucket.stockIn += d.stockIn;
+                bucket.stockOut += d.stockOut;
             });
 
-        // Merge labels from the global monthly rows
-        return slicedMonths.map((ym) => {
-            const label = monthlyTransactions.find((r) => r.yearMonth === ym)?.month ?? ym;
-            return { month: label, yearMonth: ym, ...buckets[ym] };
+            const res = [];
+            for (let i = 1; i <= 5; i++) {
+                const b = weekBuckets.get(i)!;
+                if (i === 5 && b.stockIn === 0 && b.stockOut === 0) continue; 
+                res.push({ label: `Week ${i}`, ...b });
+            }
+            return res;
+        }
+
+        const monthCount = parseInt(selectedPeriod.split('_')[0], 10);
+        const slicedMonths = availableMonths.slice(0, monthCount).reverse();
+
+        const filtered = sourceData.filter(d => slicedMonths.includes(d.date.substring(0, 7)));
+
+        const monthBuckets = new Map<string, {stockIn: number, stockOut: number}>();
+        slicedMonths.forEach(ym => monthBuckets.set(ym, {stockIn:0, stockOut:0}));
+        
+        filtered.forEach(d => {
+            const ym = d.date.substring(0, 7);
+            if (monthBuckets.has(ym)) {
+                const b = monthBuckets.get(ym)!;
+                b.stockIn += d.stockIn;
+                b.stockOut += d.stockOut;
+            }
         });
-    }, [selectedMaterial, selectedMonths, monthlyTransactions, perMaterialLogs, allMonths]);
+
+        return slicedMonths.map(ym => {
+            const label = new Date(ym + '-01').toLocaleString('default', { month: 'short', year: 'numeric' });
+            return { label, ...monthBuckets.get(ym)! };
+        });
+
+    }, [selectedMaterial, selectedPeriod, currentSpecificWeek, currentSpecificMonth, dailyTransactions, perMaterialLogs, allDates, availableMonths]);
 
     // ── Derived ratio (from filtered chart data) ──────────────────────────────
     const filteredIn  = useMemo(() => chartData.reduce((s, r) => s + r.stockIn, 0),  [chartData]);
@@ -201,7 +265,20 @@ export default function MaterialDashboard({
     const materialLabel = selectedMaterial !== 'all'
         ? materials.find((m) => m.id === parseInt(selectedMaterial, 10))?.name
         : null;
-    const monthLabel = selectedMonths !== '6' ? `Last ${selectedMonths} months` : null;
+        
+    const timeLabel = useMemo(() => {
+        if (selectedPeriod === '1_week') {
+            if (!currentSpecificWeek) return '1 Week';
+            const [y, m, w] = currentSpecificWeek.split('-');
+            return `Week ${w} in ${new Date(`${y}-${m}-01`).toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+        }
+        if (selectedPeriod === '1_month') {
+            if (!currentSpecificMonth) return '1 Month';
+            return new Date(currentSpecificMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' });
+        }
+        const count = selectedPeriod.split('_')[0];
+        return `Last ${count} months`;
+    }, [selectedPeriod, currentSpecificWeek, currentSpecificMonth]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -250,7 +327,7 @@ export default function MaterialDashboard({
                             {/* Chart header + filters */}
                             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
-                                    <h2 className="text-lg font-bold text-white">Monthly Transactions</h2>
+                                    <h2 className="text-lg font-bold text-white">Stock Flow</h2>
                                     <p className="text-xs text-slate-500">Stock In vs. Stock Out</p>
                                 </div>
 
@@ -264,24 +341,45 @@ export default function MaterialDashboard({
                                         ))}
                                     </DarkSelect>
 
-                                    {/* Month range filter */}
-                                    <DarkSelect value={selectedMonths} onChange={setSelectedMonths}>
-                                        <option value="3">Last 3 months</option>
-                                        <option value="6">Last 6 months</option>
-                                        <option value="12">Last 12 months</option>
+                                    {/* Period filter */}
+                                    <DarkSelect value={selectedPeriod} onChange={setSelectedPeriod}>
+                                        <option value="1_week">1 Week</option>
+                                        <option value="1_month">1 Month</option>
+                                        <option value="3_months">3 Months</option>
+                                        <option value="6_months">6 Months</option>
+                                        <option value="12_months">12 Months</option>
                                     </DarkSelect>
+
+                                    {/* Specific Month filter (only if 1_month) */}
+                                    {selectedPeriod === '1_month' && (
+                                        <DarkSelect value={currentSpecificMonth} onChange={setSelectedSpecificMonth}>
+                                            {availableMonths.map(ym => {
+                                                const label = new Date(ym + '-01').toLocaleString('default', { month: 'short', year: 'numeric' });
+                                                return <option key={ym} value={ym}>{label}</option>
+                                            })}
+                                        </DarkSelect>
+                                    )}
+
+                                    {/* Specific Week filter (only if 1_week) */}
+                                    {selectedPeriod === '1_week' && (
+                                        <DarkSelect value={currentSpecificWeek} onChange={setSelectedSpecificWeek}>
+                                            {availableWeeks.map(wStr => {
+                                                const [y, m, w] = wStr.split('-');
+                                                const label = `Week ${w} - ${new Date(`${y}-${m}-01`).toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+                                                return <option key={wStr} value={wStr}>{label}</option>
+                                            })}
+                                        </DarkSelect>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Active filter chips */}
-                            {(materialLabel || monthLabel) && (
+                            {(materialLabel || selectedPeriod !== '6_months') && (
                                 <div className="mb-3 flex flex-wrap gap-2">
                                     {materialLabel && (
                                         <FilterChip label={materialLabel} onRemove={() => setSelectedMaterial('all')} />
                                     )}
-                                    {monthLabel && (
-                                        <FilterChip label={monthLabel} onRemove={() => setSelectedMonths('6')} />
-                                    )}
+                                    <FilterChip label={timeLabel} onRemove={() => setSelectedPeriod('6_months')} />
                                 </div>
                             )}
 
@@ -290,7 +388,7 @@ export default function MaterialDashboard({
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }} barCategoryGap="35%" barGap={4}>
                                         <CartesianGrid vertical={false} stroke="#2d3348" strokeDasharray="4 4" />
-                                        <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
+                                        <XAxis dataKey="label" tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
                                         <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickLine={false} axisLine={false} />
                                         <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
                                         <Bar dataKey="stockIn"  name="Stock In"  fill="#4ade80" radius={[4, 4, 0, 0]} />
@@ -326,7 +424,7 @@ export default function MaterialDashboard({
                             <div className="mb-1">
                                 <h2 className="text-lg font-bold text-white">Flow Ratio</h2>
                                 <p className="text-xs text-slate-500">
-                                    {materialLabel ? materialLabel : 'All materials'} · last {selectedMonths} months
+                                    {materialLabel ? materialLabel : 'All materials'} · {timeLabel}
                                 </p>
                             </div>
 

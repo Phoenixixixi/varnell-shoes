@@ -47,19 +47,19 @@ class MaterialDashboardController extends Controller
             ->get();
 
         // Build structure:
-        // perMaterial[material_id][YYYY-MM] = { stockIn, stockOut }
+        // perMaterial[material_id][YYYY-MM-DD] = { stockIn, stockOut }
         $perMaterial = [];
-        $globalMonthMap = [];
+        $globalDailyMap = [];
 
         foreach ($rawLogs as $log) {
-            $key = Carbon::parse($log->updated_at)->format('Y-m');
+            $key = Carbon::parse($log->updated_at)->format('Y-m-d');
             $mid = $log->material_id ?? 0;
 
-            // global monthly totals
-            if (!isset($globalMonthMap[$key])) {
-                $globalMonthMap[$key] = ['stockIn' => 0, 'stockOut' => 0];
+            // global daily totals
+            if (!isset($globalDailyMap[$key])) {
+                $globalDailyMap[$key] = ['stockIn' => 0, 'stockOut' => 0];
             }
-            // per-material monthly totals
+            // per-material daily totals
             if (!isset($perMaterial[$mid])) {
                 $perMaterial[$mid] = [];
             }
@@ -68,41 +68,40 @@ class MaterialDashboardController extends Controller
             }
 
             if ($log->type === 'in') {
-                $globalMonthMap[$key]['stockIn']      += (float) $log->quantity;
+                $globalDailyMap[$key]['stockIn']      += (float) $log->quantity;
                 $perMaterial[$mid][$key]['stockIn']   += (float) $log->quantity;
             } else {
-                $globalMonthMap[$key]['stockOut']     += (float) $log->quantity;
+                $globalDailyMap[$key]['stockOut']     += (float) $log->quantity;
                 $perMaterial[$mid][$key]['stockOut']  += (float) $log->quantity;
             }
         }
 
-        // Ensure all 12 months exist in the global map
-        for ($i = 11; $i >= 0; $i--) {
-            $key = $now->copy()->subMonths($i)->format('Y-m');
-            if (!isset($globalMonthMap[$key])) {
-                $globalMonthMap[$key] = ['stockIn' => 0, 'stockOut' => 0];
+        // Ensure all days exist in the global map
+        $daysIn12Months = $now->copy()->startOfDay()->diffInDays($twelveMonthsAgo->copy()->startOfDay());
+        for ($i = 0; $i <= $daysIn12Months; $i++) {
+            $key = $twelveMonthsAgo->copy()->addDays($i)->format('Y-m-d');
+            if (!isset($globalDailyMap[$key])) {
+                $globalDailyMap[$key] = ['stockIn' => 0, 'stockOut' => 0];
             }
         }
-        ksort($globalMonthMap);
+        ksort($globalDailyMap);
 
-        // Shape global monthly for the frontend (includes year-month key for filtering)
-        $monthlyTransactions = array_values(array_map(function ($key, $values) {
+        // Shape global daily for the frontend
+        $dailyTransactions = array_values(array_map(function ($key, $values) {
             return [
-                'yearMonth' => $key,                                          // 'YYYY-MM' — used for month filter
-                'month'     => Carbon::createFromFormat('Y-m', $key)->format('M Y'),
+                'date'      => $key, // 'YYYY-MM-DD'
                 'stockIn'   => $values['stockIn'],
                 'stockOut'  => $values['stockOut'],
             ];
-        }, array_keys($globalMonthMap), array_values($globalMonthMap)));
+        }, array_keys($globalDailyMap), array_values($globalDailyMap)));
 
-        // Shape per-material data: array of { materialId, yearMonth, stockIn, stockOut }
-        // Frontend will filter + aggregate this based on selected item/month.
+        // Shape per-material data: array of { materialId, date, stockIn, stockOut }
         $perMaterialLogs = [];
-        foreach ($perMaterial as $mid => $months) {
-            foreach ($months as $ym => $vals) {
+        foreach ($perMaterial as $mid => $days) {
+            foreach ($days as $date => $vals) {
                 $perMaterialLogs[] = [
                     'materialId' => $mid,
-                    'yearMonth'  => $ym,
+                    'date'       => $date,
                     'stockIn'    => $vals['stockIn'],
                     'stockOut'   => $vals['stockOut'],
                 ];
@@ -116,7 +115,7 @@ class MaterialDashboardController extends Controller
             'stockIn7d'           => (float) $stockIn7d,
             'stockOut7d'          => (float) $stockOut7d,
             'lowStockItems'       => $lowStockItems,
-            'monthlyTransactions' => $monthlyTransactions,
+            'dailyTransactions'   => $dailyTransactions,
             'sevenDayFlow'        => $sevenDayFlow,
             'materials'           => $materials,
             'perMaterialLogs'     => $perMaterialLogs,
