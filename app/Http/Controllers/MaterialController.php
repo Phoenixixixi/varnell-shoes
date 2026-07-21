@@ -69,6 +69,7 @@ class MaterialController extends Controller
             'initial_stock' => 'required|numeric|min:0',
             'description' => 'nullable|string|max:255',
             'created_at' => 'nullable|date',
+            'log_date' => 'nullable|date',
         ]);
 
         // Use the picked date but keep the real current time; fall back to now() if blank.
@@ -76,7 +77,11 @@ class MaterialController extends Controller
             ? Carbon::parse($validated['created_at'])->setTimeFrom(now())
             : now();
 
-          DB::transaction(function () use ($validated, $request, $material, $oldStock, $oldName, $oldUnit, $timestamp) {
+        $logTimestamp = !empty($validated['log_date'])
+            ? Carbon::parse($validated['log_date'])->setTimeFrom(now())
+            : now();
+
+          DB::transaction(function () use ($validated, $request, $material, $oldStock, $oldName, $oldUnit, $timestamp, $logTimestamp) {
             $material->update([
                 'name' => $validated['name'],
                 'unit' => $validated['unit'],
@@ -85,33 +90,36 @@ class MaterialController extends Controller
             ]);
 
             if ($validated['initial_stock'] > $oldStock) {
-                $material->logs()->create([
+                \App\Models\MaterialLog::withoutTimestamps(fn () => $material->logs()->create([
                     'user_id' => $request->user()->id ?? null,
                     'material_name'=> $validated['name'],
                     'type' => 'in',
                    'quantity' => $validated['initial_stock'] - $oldStock,
                     'description' => $validated['description'] ?? 'Adding Stock',
-                    'created_at' => $timestamp,
-                ]);
+                    'created_at' => $logTimestamp,
+                    'updated_at' => $logTimestamp,
+                ]));
             } else if($validated['initial_stock'] < $oldStock){
-                $material->logs()->create([
+                \App\Models\MaterialLog::withoutTimestamps(fn () => $material->logs()->create([
                     'user_id' => $request->user()->id ?? null,
                       'material_name'=> $validated['name'],
                     'type' => 'out',
                     'quantity' => $oldStock - $validated['initial_stock'],
                     'description' => $validated['description'] ?? 'Removing Stock',
-                    'created_at' => $timestamp,
-                ]);
+                    'created_at' => $logTimestamp,
+                    'updated_at' => $logTimestamp,
+                ]));
             } 
             if($validated['name'] !== $oldName || $validated['unit'] !== $oldUnit){
-                $material->logs()->create([
+                \App\Models\MaterialLog::withoutTimestamps(fn () => $material->logs()->create([
                     'user_id' => $request->user()->id ?? null,
                       'material_name'=> $validated['name'],
                     'type' => 'adjustment',
                     'quantity' => $validated['initial_stock'],
                     'description' => 'edited name or unit',
-                    'created_at' => $timestamp,
-                ]);
+                    'created_at' => $logTimestamp,
+                    'updated_at' => $logTimestamp,
+                ]));
             }
         });
 

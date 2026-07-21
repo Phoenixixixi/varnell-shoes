@@ -35,6 +35,7 @@ export default function Materials({ materials }: Props) {
         initial_stock: '',
         description: '',
         created_at: '',
+        log_date: new Date().toISOString().split('T')[0],
     });
     const [isEditing, setIsEditing] = useState<number | null>(null);
 
@@ -65,6 +66,7 @@ export default function Materials({ materials }: Props) {
             initial_stock: material.current_stock,
             description: '',
             created_at: material.created_at ? new Date(material.created_at).toISOString().split('T')[0] : '',
+            log_date: new Date().toISOString().split('T')[0],
         });
         clearErrors();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -144,6 +146,21 @@ export default function Materials({ materials }: Props) {
                                     />
                                     {errors.created_at && <p className="mt-1 text-xs text-red-500">{errors.created_at}</p>}
                                 </Field>
+
+                                {isEditing && (
+                                    <Field>
+                                        <FieldLabel htmlFor="log_date">Stock Update Date</FieldLabel>
+                                        <FieldDescription>Set the update date for material (default: Today).</FieldDescription>
+                                        <Input
+                                            id="log_date"
+                                            type="date"
+                                            value={data.log_date}
+                                            onChange={(e) => setData('log_date', e.target.value)}
+                                            className={(errors as any).log_date ? 'border-red-500' : ''}
+                                        />
+                                        {(errors as any).log_date && <p className="mt-1 text-xs text-red-500">{(errors as any).log_date}</p>}
+                                    </Field>
+                                )}
 
                                 <Field className="md:col-span-2">
                                     <FieldLabel htmlFor="description">Note / Reason</FieldLabel>
