@@ -43,7 +43,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        if (Auth::user()->role === 'admin') {
+        if (in_array(Auth::user()->role, ['admin', 'superadmin'])) {
              // If an admin tries to login through user login, maybe allow it but redirect to admin dashboard
             return redirect()->intended(route('admin.dashboard', absolute: false));
         }
@@ -58,7 +58,7 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
-        if (Auth::user()->role !== 'admin') {
+        if (!in_array(Auth::user()->role, ['admin', 'superadmin'])) {
             Auth::guard('web')->logout();
             return back()->withErrors(['email' => 'These credentials do not have administrative access.']);
         }
