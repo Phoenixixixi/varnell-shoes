@@ -1,10 +1,11 @@
 import UserLayoutApp from '@/layouts/user-layout';
 import { formatRupiah } from '@/lib/to-rupiah';
 import { assetUrl } from '@/lib/asset-url';
+import { Link } from '@inertiajs/react';
 
 
-export default function Welcome({ product }: any) {
-    console.log(product)
+export default function Welcome({ product, isAuth, userInfo }: any) {
+    console.log(userInfo);
 
 
     return (
@@ -21,9 +22,12 @@ export default function Welcome({ product }: any) {
                                 Hand-burnished Italian calfskin meets the wild serenity of nature. Our artisan-made footwear is built for those who walk with purpose.
                             </p>
                             <div className="pt-6">
-                                <button className="btn-primary px-10 py-5 rounded-xl font-label text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-all editorial-shadow active:scale-95">
+                                <Link
+                                    className="btn-primary px-10 py-5 rounded-xl font-label text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-all editorial-shadow active:scale-95"
+                                    href='/collections'
+                                >
                                     Explore Collection
-                                </button>
+                                </Link>
                             </div>
                         </div>
                         <div className="flex-1 relative w-full aspect-square md:aspect-auto md:h-[819px] group">
@@ -167,13 +171,26 @@ export default function Welcome({ product }: any) {
                                 <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm"></div>
                             </div>
                             <div className="relative z-10 w-full max-w-xl space-y-8 text-on-primary">
-                                <h2 className="text-4xl md:text-6xl font-headline leading-tight italic text-white">Join the Varnell Circle.</h2>
-                                <p className="text-lg opacity-90 font-body text-white/80">Receive exclusive access to seasonal drops and stories from the workshop. No clutter, just craft.</p>
-                                <form className="flex flex-col md:flex-row gap-4">
-                                    <button className="bg-secondary text-on-primary px-8 py-4 rounded-xl font-label text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-all active:scale-95">
-                                        Register
-                                    </button>
-                                </form>
+
+
+                                {!isAuth ? (
+                                    <div className='flex flex-col md:flex-col gap-4'>
+                                        <h2 className="text-4xl md:text-6xl font-headline leading-tight italic text-white">Join the Varnell Circle.</h2>
+                                        <p className="text-lg opacity-90 font-body text-white/80">Receive exclusive access to seasonal drops and stories from the workshop. No clutter, just craft.</p>
+                                        <Link className="bg-secondary text-on-primary px-8 py-4 rounded-xl font-label text-sm font-bold tracking-widest uppercase hover:opacity-90 transition-all active:scale-95 max-w-42 text-center"
+                                            href='/sign-up'
+                                        >
+                                            Register
+                                        </Link>
+                                    </div>
+                                ) : (
+                                    <div className='flex flex-col md:flex-col gap-4'>
+                                        <h2 className="text-4xl md:text-6xl font-headline leading-tight italic text-white">Welcome, {userInfo.name}</h2>
+                                        <p className="text-lg opacity-90 font-body text-white/80">Receive exclusive access to seasonal drops and stories from the workshop. No clutter, just craft.</p>
+
+                                    </div>
+                                )}
+
                             </div>
                         </div>
                     </section>

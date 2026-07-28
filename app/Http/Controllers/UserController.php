@@ -2,25 +2,32 @@
 
 namespace App\Http\Controllers;
 
-
-use App\Models\Product;
 use App\Models\ConsumentCare;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class UserController extends Controller
 {
-    public function index(){
-        $products = Product::with(['images' => function($q) {
+    public function index()
+    {
+        $products = Product::with(['images' => function ($q) {
             $q->orderBy('id')->take(1);
         }, 'sizes'])->latest()->take(3)->get();
+
+        $isAuth = Auth::check();
+        $userInfo = Auth::user();
+
         return Inertia::render('user/welcome', [
-            'product' => $products
+            'product' => $products,
+            'isAuth' => $isAuth,
+            'userInfo' => $userInfo,
         ]);
     }
 
-    public function consumentCare(){
+    public function consumentCare()
+    {
         return Inertia::render('user/consument-care');
     }
 
@@ -30,7 +37,7 @@ class UserController extends Controller
             'messages' => 'required|string|min:5|max:5000',
         ];
 
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             $rules['name'] = 'required|string|max:255';
             $rules['email'] = 'required|email|max:255';
         }
@@ -47,7 +54,8 @@ class UserController extends Controller
         return back()->with('success', 'Thank you for reaching out. We have received your inquiry.');
     }
 
-    public function heritage(){
+    public function heritage()
+    {
         return Inertia::render('user/heritage');
     }
 }

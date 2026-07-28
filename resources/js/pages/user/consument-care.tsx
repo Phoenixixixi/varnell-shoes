@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import InputError from '@/components/input-error';
 import { MessageSquare, Send, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ConsumentCare() {
     const { auth } = usePage<any>().props;
@@ -22,7 +23,17 @@ export default function ConsumentCare() {
         post(route('consument-care.store'), {
             onSuccess: () => {
                 reset('messages');
-            }
+                toast.success('Message sent successfully!', {
+                    description: 'A Varnell representative will reply within 24 hours.',
+                    duration: 5000,
+                });
+            },
+            onError: () => {
+                toast.error('Failed to send message.', {
+                    description: 'Please check your inputs and try again.',
+                    duration: 5000,
+                });
+            },
         });
     };
 
@@ -119,7 +130,7 @@ export default function ConsumentCare() {
                                     <button
                                         type="submit"
                                         disabled={processing}
-                                        className="inline-flex items-center gap-3 bg-primary text-on-primary hover:bg-primary/95 font-label text-xs font-bold tracking-[0.2em] uppercase px-8 py-4 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none hover:shadow-lg"
+                                        className="inline-flex items-center gap-3 bg-primary text-on-primary hover:bg-primary/95 font-label text-xs font-bold tracking-[0.2em] uppercase px-8 py-4 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none hover:shadow-lg text-white"
                                     >
                                         {processing ? 'Submitting...' : (
                                             <>
