@@ -55,7 +55,7 @@ export default function Header() {
         { name: 'Home', link: "/", active: url === "/" },
         { name: "Collections", link: "/collections", active: url === "/collections" },
         { name: "Consument Care", link: "/consument-care", active: url === "/consument-care" },
-        { name: "Heritage", link: "/heritage", active: url === "/heritage" },
+        { name: "Articles", link: "/heritage", active: url === "/heritage" },
     ]
 
     if (auth?.user) {
